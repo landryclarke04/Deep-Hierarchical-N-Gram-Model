@@ -13,6 +13,7 @@ class Model:
         self.nodes = {}
         self.nodes[self.root.get_gram()] = self.root
         self.y = None
+        # you might not need to do this, should only need one tope node
         self.level1 = []
 
         self.build(self.root)
@@ -21,7 +22,11 @@ class Model:
         self.phi_collection = [] # go from level 1 to what is needed
         # rules of indexing
         # # correct phi object is as len(gram)-1 -> level-1
-        self.build_phi()        
+        self.build_phi()
+
+        # create true mean
+        self.create_true_mean(self.level1[0])
+        self.update_prior_mean(self.level1[0])        
         
 
     def build(self, node):
@@ -77,6 +82,59 @@ class Model:
             self.phi_collection.append(Phi(i))
         return
     
+    def create_true_mean(self, node, visited=None):
+        if visited is None:
+            visited = set()
+
+        if node in visited:
+            return
+        # if level 1 we can skip this step
+        # ensuring all parents are visited first
+        if node.check_parents():
+            if node.left_parent() not in visited:
+                self.create_true_mean(node.left_parent(), visited)
+            if node.right_parent() not in visited:
+                self.create_true_mean(node.right_parent(), visited)
+
+        # all parents visited or 1st level node
+        if node not in visited:
+            visited.add(node)
+            level = len(node.gram)
+            phi_level = self.phi_collection[level-1]
+            # passing correct phi left and right
+            node.create_true_mean(phi_level.phi_left(),
+                             phi_level.phi_right())
+
+        for child in node.get_children():
+            self.create_true_mean(child, visited)
+
+    def update_prior_mean(self, node, visited=None):
+        if visited is None:
+            visited = set()
+
+        if node in visited:
+            return
+        # if level 1 we can skip this step
+        # ensuring all parents are visited first
+        if node.check_parents():
+            if node.left_parent() not in visited:
+                self.update_prior_mean(node.left_parent(), visited)
+            if node.right_parent() not in visited:
+                self.update_prior_mean(node.right_parent(), visited)
+
+        # all parents visited or 1st level node
+        if node not in visited:
+            visited.add(node)
+            level = len(node.gram)
+            phi_level = self.phi_collection[level-1]
+            # passing correct phi left and right
+            node.update_prior_mean(phi_level.phi_left(),
+                             phi_level.phi_right())
+
+        for child in node.get_children():
+            self.update_prior_mean(child, visited)
+
+
     def get_size(self):
         return len(self.nodes)
     

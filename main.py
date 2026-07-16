@@ -18,16 +18,40 @@ def traverse(node, visited=None):
     if visited is None:
         visited = set()
 
-    if node in visited or len(node.gram)==1:
+    if node in visited:
         return
     
     visited.add(node)
 
-    check_node(node)
-    
-    traverse(node.right_par)
-    traverse(node.left_par)
+    # tests for build
+    # check_node(node)
 
+    # tests for true mean
+    # check_true_mean(node)
+    
+    # tests for prior mean
+    # check_prior_mean(node)
+
+    # dont call for top level
+    if len(node.gram) != 1:
+        traverse(node.right_par)
+        traverse(node.left_par)
+
+def check_true_mean(node):
+    # test 1 is mean the correct size
+    print("size p: " + str(node.get_p()))
+    print("dimensions of true_mean: " + str(node.get_true_mean().shape))
+    # test 2 making sure mean is not empty
+    print("True Mean for " + node.gram)
+    print(node.get_true_mean())
+
+def check_prior_mean(node):
+    # test 1 is mean the correct size
+    print("size p: " + str(node.get_p()))
+    print("dimensions of prior_mean: " + str(node.get_prior_mean().shape))
+    # test 2 making sure mean is not empty
+    print("Prior Mean for " + node.gram)
+    print(node.get_prior_mean())
 
 def check_node(node):
     print("Node: " + node.gram + " Node Left Parent: " + str(node.left_par)
@@ -50,7 +74,7 @@ def main():
 
     # print(find_count(gram_ex))
 
-    phi = model_ex.get_phi()
+    # phi = model_ex.get_phi()
     # for p in phi:
     #     print(p)
     #print(phi[5])
@@ -59,20 +83,5 @@ def main():
 
     #model_ex = test_build("EXODUS")
     
-
-
-
-
-    # node = Node("THE")
-    # print(node.true_var)
-    # child = Node("TH")
-    # print(child.true_var)
-    # print(node)
-
-    # pair = node, child
-    # print(pair)
-    # print(pair[1].gram)
-    # child.gram = "Hello"
-    # print(pair[1].gram)
     return 0
 main()
