@@ -26,7 +26,19 @@ class Model:
 
         # create true mean
         self.create_true_mean(self.level1[0])
-        self.update_prior_mean(self.level1[0])        
+        self.update_prior_mean(self.level1[0])   
+
+    # inference yay! :D
+
+    def data(self, n):
+        self.y = np.random.multivariate_normal(
+            self.root.get_true_mean().flatten(),
+            self.root.get_true_var(),
+            size=n
+        )
+
+    def inference(self, n):
+        self.data(n)
         
 
     def build(self, node):

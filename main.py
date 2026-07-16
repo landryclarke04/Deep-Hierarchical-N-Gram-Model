@@ -11,7 +11,7 @@ from model import Phi # for testing purposes
 
 def test_build(gram):
     model = Model(gram)
-    traverse(model.root)
+    # traverse(model.root)
     return model
 
 def traverse(node, visited=None):
@@ -70,6 +70,8 @@ def main():
 
     gram_ex = "EXODUS"
     model_ex = test_build(gram_ex)
+    model_ex.inference(500)
+    print(model_ex.y.shape)
     # print(model_ex.get_size())
 
     # print(find_count(gram_ex))

@@ -142,5 +142,8 @@ class Node:
     def get_right_children(self):
         return self.right_children
     
+    def get_true_var(self):
+        return self.true_var
+    
     def __str__(self):
         return self.gram
