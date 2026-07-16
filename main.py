@@ -6,6 +6,7 @@ import random
 
 from mean_general import Node
 from model import Model
+from model import Phi # for testing purposes
 
 
 def test_build(gram):
@@ -45,9 +46,14 @@ def main():
 
     gram_ex = "EXODUS"
     model_ex = test_build(gram_ex)
-    print(model_ex.get_size())
+    # print(model_ex.get_size())
 
-    print(find_count(gram_ex))
+    # print(find_count(gram_ex))
+
+    phi = model_ex.get_phi()
+    # for p in phi:
+    #     print(p)
+    #print(phi[5])
 
     #model_4 = test_build("THER")
 
