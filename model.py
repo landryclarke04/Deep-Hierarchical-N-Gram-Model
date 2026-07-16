@@ -37,8 +37,18 @@ class Model:
             size=n
         )
 
+    def update_posterior(self):
+        # need to go from down up
+        return
+
     def inference(self, n):
+        # step 1: make data
         self.data(n)
+
+        # step 2: last level posterior
+        # just for checking if it works
+        self.root.posterior_data(self.y)
+        self.root.print_results()
         
 
     def build(self, node):

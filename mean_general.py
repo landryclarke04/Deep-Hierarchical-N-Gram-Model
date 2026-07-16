@@ -44,6 +44,54 @@ class Node:
         # what will be compared to true_mean
         self.est_mean = None
 
+    # updated est mean
+    def posterior(self, phi_left, phi_right, data=None):
+        if data is not None:
+            self.posterior_data(data)
+            return
+        
+
+    def posterior_data(self, data):
+        # post variance wow
+        prior_V = np.linalg.inv(self.prior_var)
+        true_sig = np.linalg.inv(self.true_var)
+        n = data.shape[0]
+        self.post_var = np.linalg.inv(prior_V + n* true_sig)
+
+        # post eta
+        y_bar = np.mean(data, axis=0).reshape(self.p, 1)
+        eta = self.prior_mean
+        self.post_mean = self.post_var @ (prior_V@eta + n*true_sig @ y_bar)
+
+        self.run_sample_mean()
+    
+    def run_sample_mean(self):
+        num_samples = 10000
+
+        mu_samples = []
+
+        # sample a bunch
+        for i in range(num_samples):
+
+            mu = self.sample_MVN(self.post_mean, self.post_var)
+
+            mu_samples.append(mu.copy())
+
+        burn = int(num_samples*0.1)
+
+        mu_post = np.array(mu_samples[burn:])
+        mu_est = mu_post.mean(axis=0)
+
+        self.est_mean = np.array(mu_est).reshape(self.p, 1)
+
+    def print_results(self):
+        print("True Mean: ")
+        print(self.true_mean)
+        print("Estimated Mean: ")
+        print(self.est_mean)
+        for i in range(self.true_mean.shape[0]):
+            print(self.true_mean[i][0] - self.est_mean[i][0])
+
     # prior and true mean methods
 
     def update_prior_mean(self, phi_left, phi_right):
