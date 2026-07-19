@@ -9,14 +9,24 @@ trying generalization
 '''
 class Node:
 
-    mu_omega = np.array([0.3]).reshape(1,1)
-    mu_delta = np.array([0.5]).reshape(1,1)
+    eta_omega = np.array([0.3])
+    sig_omega = invwishart.rvs(
+                df=(3), # self.p=1 + 2
+                scale= np.eye(1) # self.p=1
+            ).reshape(1, 1) #self.p=1
+    mu_omega = np.random.multivariate_normal(eta_omega, sig_omega).reshape(1, 1)
+    sig_delta = invwishart.rvs(
+                df=(3), # self.p=1 + 2
+                scale= np.eye(1) # self.p=1
+            ).reshape(1, 1) #self.p =1
+    eta_delta = np.array([0.5])
     phi_delta = np.array([
         [0],
         [1],
         [0]
     ]).reshape(3,1)
-
+    mu_delta = np.random.multivariate_normal(eta_delta, sig_delta).reshape(1, 1)
+    
     def __init__(self, gram):
         self.gram = gram
         # number of parameters (for size of mean and cov etc) 2n - 1
@@ -84,7 +94,7 @@ class Node:
         self.post_var = np.linalg.inv(post_V)
         self.post_mean = self.post_var @ post_eta
 
-        self.prior_var = self.post_var.copy()
+        # self.prior_var = self.post_var.copy()
 
         self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
         # self.mean_copies.append(self.est_mean.cpoy())
@@ -106,7 +116,7 @@ class Node:
         eta = self.prior_mean
         self.post_mean = self.post_var @ (prior_V@eta + n*true_sig @ y_bar)
 
-        self.prior_var = self.post_var.copy()
+        # self.prior_var = self.post_var.copy()
 
         self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
         # self.mean_copies.append(self.est_mean.copy())
@@ -147,15 +157,26 @@ class Node:
         self.est_mean = np.array(mu_est).reshape(self.p, 1)
 
     def print_results(self):
+        string = "*******************\n"
         print("*******************")
         print("For gram "+ self.gram)
+        string += "For gram "+ self.gram + "\n"
         # print("True Mean: ")
         # print(self.true_mean)
         # print("Estimated Mean: ")
         # print(self.est_mean)
         print("Difference in true and est mean")
+        string += "Difference in true and est mean\n\n"
         for i in range(self.true_mean.shape[0]):
             print(self.true_mean[i][0] - self.est_mean[i][0])
+            string += str(self.true_mean[i][0] - self.est_mean[i][0]) +"\n\n"
+        self.write_to_file(string)
+        # writing to save file
+        
+
+    def write_to_file(self, string):
+        with open("../track_mean_est.md", "a") as file:
+            file.writelines(string)
 
     # prior and true mean methods
 
@@ -182,15 +203,16 @@ class Node:
     def create_true_mean(self, phi_left, phi_right):
         # check edge case (level 1)
         if self.p == 1:
-            self.true_mean = self.sample_MVN(Node.mu_omega, self.true_var)
+            self.true_mean = Node.mu_omega
         else:
             eta = (phi_left @ self.left_parent().get_true_mean() + phi_right 
                         @ self.right_parent().get_true_mean()).reshape(self.p, 1)
             # checking last edge case (level 2 needs delta as well)
-            if self.p == 3:
-                eta[1][0] = Node.mu_delta[0][0]
+            
             # true_mean should be N(eta, true_var)
             self.true_mean = self.sample_MVN(eta, self.true_var)
+            if self.p == 3:
+                self.true_mean[1][0] = Node.mu_delta[0][0]
             
         
     # setters

@@ -61,7 +61,9 @@ def find_count(gram):
     return (len(gram)*(len(gram)+1))//2
 
 def main():
-    gram_3 = "THE"
+    # gram_3 = "THE"
+    # gram_3 = "EXODUS"
+    gram_3 = "THER"
 
     model_3 = test_build(gram_3)
     model_3.inference(500)
