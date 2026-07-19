@@ -61,16 +61,17 @@ def find_count(gram):
     return (len(gram)*(len(gram)+1))//2
 
 def main():
-    # gram_3 = "THE"
+    gram_3 = "THE"
 
-    # model_3 = test_build(gram_3)
+    model_3 = test_build(gram_3)
+    model_3.inference(500)
     # print(model_3.get_size())
 
     # print(find_count(gram_3))
 
-    gram_ex = "EXODUS"
-    model_ex = test_build(gram_ex)
-    model_ex.inference(500)
+    # gram_ex = "EXODUS"
+    # model_ex = test_build(gram_ex)
+    # model_ex.inference(500)
     # print(model_ex.y.shape)
     # print(model_ex.get_size())
 

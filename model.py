@@ -47,8 +47,59 @@ class Model:
 
         # step 2: last level posterior
         # just for checking if it works
-        self.root.posterior_data(self.y)
-        self.root.print_results()
+        self.gibbs()
+        for k in self.nodes:
+            node = self.nodes[k]
+            node.print_results()
+        # self.root.get_final_mean_est()
+        # self.root.posterior_data(self.y)
+        # self.update_posterior(self.root)
+        # self.root.run_sample_mean()
+        # self.root.print_results()
+
+    def gibbs(self):
+        num_samples = 1000
+
+        # sample a bunch
+        for i in range(num_samples):
+            self.root.posterior_data(self.y)
+            
+            # call something that goes down up
+            # update our posteriors
+            self.update_posterior(self.root)
+
+            # call something that goes up down
+            # update priors
+            self.update_prior_mean(self.level1[0])
+
+            #mu = self.sample_MVN(self.post_mean, self.post_var)
+
+    def update_posterior(self, node):
+        # need to go up the tree once and call posterior for each node
+        for c in node.get_children():
+            if not c.get_has_run():
+                self.update_posterior(c)
+
+
+        # node has already been run
+        if node.get_has_run():
+            if node.check_parents():
+                self.update_posterior(node.left_parent())
+                self.update_posterior(node.right_parent())
+            return
+
+        # print(node.gram)
+
+        level = len(node.gram) +1
+        phi = self.phi_collection[level-1]
+        node.posterior(phi.phi_left(), phi.phi_right())
+        
+        # if node does not have parents we are at the top
+        if node.check_parents():
+            self.update_posterior(node.left_parent())
+            self.update_posterior(node.right_parent())
+        
+        return
         
 
     def build(self, node):

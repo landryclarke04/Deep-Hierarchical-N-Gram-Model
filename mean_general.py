@@ -43,12 +43,57 @@ class Node:
 
         # what will be compared to true_mean
         self.est_mean = None
+        self.mean_copies = []
+
+        # cycle boolean
+        self.has_run = False
 
     # updated est mean
     def posterior(self, phi_left, phi_right, data=None):
         if data is not None:
             self.posterior_data(data)
             return
+        prior_V = np.linalg.inv(self.prior_var)
+        # post variance first
+        post_V = prior_V # inverse to make into post V
+
+        eta = self.prior_mean
+        post_eta = prior_V @ eta
+
+        for c in self.get_left_children():
+            # variance
+            child_V = np.linalg.inv(c.get_prior_var())
+            post_V += phi_right.T @ child_V @ phi_right
+
+            # eta
+            sib_mean = c.left_parent().get_est_mean()
+            child_mean = c.get_est_mean()
+            post_eta += phi_right.T @ child_V @ (child_mean - 
+                                                phi_left @ sib_mean)
+            
+        for c in self.get_right_children():
+            # variance
+            child_V = np.linalg.inv(c.get_prior_var())
+            post_V += phi_left.T @ child_V @ phi_left
+
+            # eta
+            sib_mean = c.right_parent().get_est_mean()
+            child_mean = c.get_est_mean()
+            post_eta += phi_left.T @ child_V @ (child_mean - 
+                                                phi_right @ sib_mean)
+
+        
+
+        self.post_var = np.linalg.inv(post_V)
+        self.post_mean = self.post_var @ post_eta
+
+        self.prior_var = self.post_var.copy()
+
+        self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
+        # self.mean_copies.append(self.est_mean.cpoy())
+
+        self.has_run = True
+        self.run_sample_mean()
         
 
     def posterior_data(self, data):
@@ -63,10 +108,28 @@ class Node:
         eta = self.prior_mean
         self.post_mean = self.post_var @ (prior_V@eta + n*true_sig @ y_bar)
 
+        self.prior_var = self.post_var.copy()
+
+        self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
+        # self.mean_copies.append(self.est_mean.copy())
+
+        self.has_run = True
         self.run_sample_mean()
+
+    def get_final_mean_est(self):
+        num_samples = len(self.mean_copies)
+
+        burn = int(num_samples*0.1)
+
+        mu_post = np.array(self.mean_copies[burn:])
+        mu_est = mu_post.mean(axis=0)
+
+        self.est_mean = np.array(mu_est).reshape(self.p, 1)
+        self.print_results()
+
     
     def run_sample_mean(self):
-        num_samples = 10000
+        num_samples = 2
 
         mu_samples = []
 
@@ -85,16 +148,20 @@ class Node:
         self.est_mean = np.array(mu_est).reshape(self.p, 1)
 
     def print_results(self):
-        print("True Mean: ")
-        print(self.true_mean)
-        print("Estimated Mean: ")
-        print(self.est_mean)
+        print("*******************")
+        print("For gram "+ self.gram)
+        # print("True Mean: ")
+        # print(self.true_mean)
+        # print("Estimated Mean: ")
+        # print(self.est_mean)
+        print("Difference in true and est mean")
         for i in range(self.true_mean.shape[0]):
             print(self.true_mean[i][0] - self.est_mean[i][0])
 
     # prior and true mean methods
 
     def update_prior_mean(self, phi_left, phi_right):
+        self.has_run = False
         # check edge case (level 1)
         if self.p == 1:
             eta = Node.mu_omega.copy()
@@ -111,6 +178,7 @@ class Node:
         # est_mean = N(self. prior, self.prior_var)
         if self.est_mean is None:
             self.est_mean = self.sample_MVN(self.prior_mean, self.prior_var)
+        
 
     def create_true_mean(self, phi_left, phi_right):
         # check edge case (level 1)
@@ -192,6 +260,15 @@ class Node:
     
     def get_true_var(self):
         return self.true_var
+    
+    def get_prior_var(self):
+        return self.prior_var
+    
+    def get_post_var(self):
+        return self.post_var
+    
+    def get_has_run(self):
+        return self.has_run
     
     def __str__(self):
         return self.gram
