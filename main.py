@@ -63,10 +63,10 @@ def find_count(gram):
 def main():
     # gram_3 = "THE"
     # gram_3 = "EXODUS"
-    gram_3 = "THER"
+    gram_3 = "THE"
 
     model_3 = test_build(gram_3)
-    model_3.inference(500)
+    model_3.inference(1000)
     # print(model_3.get_size())
 
     # print(find_count(gram_3))

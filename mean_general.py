@@ -97,10 +97,10 @@ class Node:
         # self.prior_var = self.post_var.copy()
 
         self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
-        # self.mean_copies.append(self.est_mean.cpoy())
+        self.mean_copies.append(self.est_mean.copy())
 
         self.has_run = True
-        self.prior_mean = None
+        #self.prior_mean = None
         # self.run_sample_mean()
         
 
@@ -119,10 +119,10 @@ class Node:
         # self.prior_var = self.post_var.copy()
 
         self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
-        # self.mean_copies.append(self.est_mean.copy())
+        self.mean_copies.append(self.est_mean.copy())
 
         self.has_run = True
-        self.prior_mean = None
+        #self.prior_mean = None
         # self.run_sample_mean()
 
     def get_final_mean_est(self):
@@ -170,7 +170,7 @@ class Node:
         for i in range(self.true_mean.shape[0]):
             print(self.true_mean[i][0] - self.est_mean[i][0])
             string += str(self.true_mean[i][0] - self.est_mean[i][0]) +"\n\n"
-        self.write_to_file(string)
+        # self.write_to_file(string)
         # writing to save file
         
 
@@ -184,7 +184,7 @@ class Node:
         self.has_run = False
         # check edge case (level 1)
         if self.p == 1:
-            eta = self.true_mean.copy()
+            eta = Node.mu_omega
         else:
             eta = (phi_left @ self.left_parent().get_est_mean() + phi_right 
                         @ self.right_parent().get_est_mean())
@@ -203,16 +203,17 @@ class Node:
     def create_true_mean(self, phi_left, phi_right):
         # check edge case (level 1)
         if self.p == 1:
-            self.true_mean = Node.mu_omega
+            self.true_mean = self.sample_MVN(Node.mu_omega, self.true_var)
         else:
             eta = (phi_left @ self.left_parent().get_true_mean() + phi_right 
                         @ self.right_parent().get_true_mean()).reshape(self.p, 1)
             # checking last edge case (level 2 needs delta as well)
-            
-            # true_mean should be N(eta, true_var)
-            self.true_mean = self.sample_MVN(eta, self.true_var)
             if self.p == 3:
-                self.true_mean[1][0] = Node.mu_delta[0][0]
+                eta[1][0] = Node.mu_delta[0][0]
+            # true_mean should be N(eta, true_var)
+            # self.true_mean = eta.reshape(self.p, 1)
+            self.true_mean = self.sample_MVN(eta, self.true_var)
+            
             
         
     # setters

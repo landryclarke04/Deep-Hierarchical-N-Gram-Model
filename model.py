@@ -49,9 +49,9 @@ class Model:
         # step 2: last level posterior
         # just for checking if it works
         self.gibbs()
-        for k in self.nodes:
-            node = self.nodes[k]
-            node.print_results()
+        # for k in self.nodes:
+        #     node = self.nodes[k]
+        #     node.print_results()
         # self.root.get_final_mean_est()
         # self.root.posterior_data(self.y)
         # self.update_posterior(self.root)
@@ -59,7 +59,7 @@ class Model:
         # self.root.print_results()
 
     def gibbs(self):
-        num_samples = 1000
+        num_samples = 10000
 
         # sample a bunch
         for i in range(num_samples):
@@ -76,7 +76,7 @@ class Model:
             #mu = self.sample_MVN(self.post_mean, self.post_var)
 
         for gram in self.nodes:
-            self.nodes[gram].run_sample_mean()
+            self.nodes[gram].get_final_mean_est()
 
     def update_posterior_mean(self, node):
         # need to go up the tree once and call posterior for each node
