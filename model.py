@@ -67,7 +67,7 @@ class Model:
             
             # call something that goes down up
             # update our posteriors
-            self.update_posterior(self.root)
+            self.update_posterior_mean(self.root)
 
             # call something that goes up down
             # update priors
@@ -75,30 +75,33 @@ class Model:
 
             #mu = self.sample_MVN(self.post_mean, self.post_var)
 
-    def update_posterior(self, node):
+        for gram in self.nodes:
+            self.nodes[gram].run_sample_mean()
+
+    def update_posterior_mean(self, node):
         # need to go up the tree once and call posterior for each node
         for c in node.get_children():
             if not c.get_has_run():
-                self.update_posterior(c)
+                self.update_posterior_mean(c)
 
 
         # node has already been run
         if node.get_has_run():
             if node.check_parents():
-                self.update_posterior(node.left_parent())
-                self.update_posterior(node.right_parent())
+                self.update_posterior_mean(node.left_parent())
+                self.update_posterior_mean(node.right_parent())
             return
 
         # print(node.gram)
 
         level = len(node.gram) +1
         phi = self.phi_collection[level-1]
-        node.posterior(phi.phi_left(), phi.phi_right())
+        node.posterior_mean(phi.phi_left(), phi.phi_right())
         
         # if node does not have parents we are at the top
         if node.check_parents():
-            self.update_posterior(node.left_parent())
-            self.update_posterior(node.right_parent())
+            self.update_posterior_mean(node.left_parent())
+            self.update_posterior_mean(node.right_parent())
         
         return
         

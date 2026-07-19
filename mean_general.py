@@ -49,10 +49,7 @@ class Node:
         self.has_run = False
 
     # updated est mean
-    def posterior(self, phi_left, phi_right, data=None):
-        if data is not None:
-            self.posterior_data(data)
-            return
+    def posterior_mean(self, phi_left, phi_right):
         prior_V = np.linalg.inv(self.prior_var)
         # post variance first
         post_V = prior_V # inverse to make into post V
@@ -94,7 +91,7 @@ class Node:
 
         self.has_run = True
         self.prior_mean = None
-        self.run_sample_mean()
+        # self.run_sample_mean()
         
 
     def posterior_data(self, data):
@@ -116,7 +113,7 @@ class Node:
 
         self.has_run = True
         self.prior_mean = None
-        self.run_sample_mean()
+        # self.run_sample_mean()
 
     def get_final_mean_est(self):
         num_samples = len(self.mean_copies)
@@ -131,7 +128,7 @@ class Node:
 
     
     def run_sample_mean(self):
-        num_samples = 2
+        num_samples = 1000
 
         mu_samples = []
 
@@ -166,7 +163,7 @@ class Node:
         self.has_run = False
         # check edge case (level 1)
         if self.p == 1:
-            eta = Node.mu_omega.copy()
+            eta = self.true_mean.copy()
         else:
             eta = (phi_left @ self.left_parent().get_est_mean() + phi_right 
                         @ self.right_parent().get_est_mean())
@@ -191,9 +188,10 @@ class Node:
                         @ self.right_parent().get_true_mean()).reshape(self.p, 1)
             # checking last edge case (level 2 needs delta as well)
             if self.p == 3:
-                eta += Node.phi_delta @ Node.mu_delta
+                eta[1][0] = Node.mu_delta[0][0]
             # true_mean should be N(eta, true_var)
             self.true_mean = self.sample_MVN(eta, self.true_var)
+            
         
     # setters
 
