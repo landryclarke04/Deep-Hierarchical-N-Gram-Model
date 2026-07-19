@@ -93,6 +93,7 @@ class Node:
         # self.mean_copies.append(self.est_mean.cpoy())
 
         self.has_run = True
+        self.prior_mean = None
         self.run_sample_mean()
         
 
@@ -114,6 +115,7 @@ class Node:
         # self.mean_copies.append(self.est_mean.copy())
 
         self.has_run = True
+        self.prior_mean = None
         self.run_sample_mean()
 
     def get_final_mean_est(self):

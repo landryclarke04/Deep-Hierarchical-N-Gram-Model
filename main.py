@@ -64,7 +64,7 @@ def main():
     gram_3 = "THE"
 
     model_3 = test_build(gram_3)
-    # model_3.inference(500)
+    model_3.inference(500)
     # print(model_3.get_size())
 
     # print(find_count(gram_3))
