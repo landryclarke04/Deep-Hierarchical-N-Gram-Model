@@ -13,8 +13,7 @@ class Model:
         self.nodes = {}
         self.nodes[self.root.get_gram()] = self.root
         self.y = None
-        # you might not need to do this, should only need one tope node
-        self.level1 = []
+        
 
         self.build(self.root)
 
@@ -24,9 +23,11 @@ class Model:
         # # correct phi object is as len(gram)-1 -> level-1
         self.build_phi()
 
+        # change from list to just one object
+        self.level1 = self.nodes[self.root.get_gram()[0]]
         # create true mean
-        self.create_true_mean(self.level1[0])
-        self.update_prior_mean(self.level1[0])   
+        self.create_true_mean(self.level1)
+        self.update_prior_mean(self.level1)   
 
     # inference yay! :D
 
@@ -70,7 +71,7 @@ class Model:
 
             # call something that goes up down
             # update priors
-            self.update_prior_mean(self.level1[0])
+            self.update_prior_mean(self.level1)
 
             #mu = self.sample_MVN(self.post_mean, self.post_var)
 
@@ -105,10 +106,7 @@ class Model:
     def build(self, node):
         gram = node.get_gram()
         # has no more parent nodes
-        if len(gram) == 0:
-            return
-        if len(gram) == 1:
-            self.level1.append(node)
+        if len(gram) <= 1:
             return
         gram_left = gram[:-1] # removing last char
 
@@ -155,23 +153,21 @@ class Model:
             self.phi_collection.append(Phi(i))
         return
     
-    def create_true_mean(self, node, visited=None):
-        if visited is None:
-            visited = set()
-
-        if node in visited:
+    def create_true_mean(self, node):
+        # already been set
+        if node.get_true_mean() is not None:
             return
+
         # if level 1 we can skip this step
         # ensuring all parents are visited first
         if node.check_parents():
-            if node.left_parent() not in visited:
-                self.create_true_mean(node.left_parent(), visited)
-            if node.right_parent() not in visited:
-                self.create_true_mean(node.right_parent(), visited)
+            if node.left_parent().get_true_mean() is None:
+                self.create_true_mean(node.left_parent())
+            if node.right_parent().get_true_mean() is None:
+                self.create_true_mean(node.right_parent())
 
         # all parents visited or 1st level node
-        if node not in visited:
-            visited.add(node)
+        if node.get_true_mean() is None:
             level = len(node.gram)
             phi_level = self.phi_collection[level-1]
             # passing correct phi left and right
@@ -179,25 +175,24 @@ class Model:
                              phi_level.phi_right())
 
         for child in node.get_children():
-            self.create_true_mean(child, visited)
+            self.create_true_mean(child)
 
-    def update_prior_mean(self, node, visited=None):
-        if visited is None:
-            visited = set()
+    def update_prior_mean(self, node):
+        # if visited is None:
+        #     visited = set()
 
-        if node in visited:
+        if node.get_prior_mean() is not None:
             return
         # if level 1 we can skip this step
         # ensuring all parents are visited first
         if node.check_parents():
-            if node.left_parent() not in visited:
-                self.update_prior_mean(node.left_parent(), visited)
-            if node.right_parent() not in visited:
-                self.update_prior_mean(node.right_parent(), visited)
+            if node.left_parent().get_prior_mean() is None:
+                self.update_prior_mean(node.left_parent())
+            if node.right_parent().get_prior_mean() is None:
+                self.update_prior_mean(node.right_parent())
 
         # all parents visited or 1st level node
-        if node not in visited:
-            visited.add(node)
+        if node.get_prior_mean() is None:
             level = len(node.gram)
             phi_level = self.phi_collection[level-1]
             # passing correct phi left and right
@@ -205,7 +200,7 @@ class Model:
                              phi_level.phi_right())
 
         for child in node.get_children():
-            self.update_prior_mean(child, visited)
+            self.update_prior_mean(child)
 
 
     def get_size(self):

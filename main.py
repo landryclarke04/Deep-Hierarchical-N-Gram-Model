@@ -11,7 +11,7 @@ from model import Phi # for testing purposes
 
 def test_build(gram):
     model = Model(gram)
-    # traverse(model.root)
+    traverse(model.root)
     return model
 
 def traverse(node, visited=None):
@@ -24,7 +24,7 @@ def traverse(node, visited=None):
     visited.add(node)
 
     # tests for build
-    # check_node(node)
+    check_node(node)
 
     # tests for true mean
     # check_true_mean(node)
@@ -64,7 +64,7 @@ def main():
     gram_3 = "THE"
 
     model_3 = test_build(gram_3)
-    model_3.inference(500)
+    # model_3.inference(500)
     # print(model_3.get_size())
 
     # print(find_count(gram_3))
