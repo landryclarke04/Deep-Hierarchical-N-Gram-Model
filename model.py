@@ -48,6 +48,7 @@ class Model:
 
         # step 2: last level posterior
         # just for checking if it works
+        print("n = "+str(n))
         self.gibbs()
         # for k in self.nodes:
         #     node = self.nodes[k]
@@ -60,6 +61,7 @@ class Model:
 
     def gibbs(self):
         num_samples = 10000
+        print("Number of Gibbs samples: "+ str(num_samples))
 
         # sample a bunch
         for i in range(num_samples):
@@ -71,9 +73,12 @@ class Model:
 
             # call something that goes up down
             # update priors
-            self.update_prior_mean(self.level1)
+            # self.update_prior_mean(self.level1)
 
             #mu = self.sample_MVN(self.post_mean, self.post_var)
+
+            for gram in self.nodes:
+                self.nodes[gram].has_run = False
 
         for gram in self.nodes:
             self.nodes[gram].get_final_mean_est()

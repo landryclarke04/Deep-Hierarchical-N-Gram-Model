@@ -66,7 +66,10 @@ def main():
     gram_3 = "THE"
 
     model_3 = test_build(gram_3)
-    model_3.inference(1000)
+    # for c in model_3.nodes["TH"].right_children:
+    #     print(c.gram)
+    # print(model_3.nodes["HE"].left_children.gram)
+    model_3.inference(500)
     # print(model_3.get_size())
 
     # print(find_count(gram_3))

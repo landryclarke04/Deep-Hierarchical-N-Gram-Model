@@ -62,9 +62,9 @@ class Node:
     def posterior_mean(self, phi_left, phi_right):
         prior_V = np.linalg.inv(self.prior_var)
         # post variance first
-        post_V = prior_V # inverse to make into post V
+        post_V = prior_V.copy() # inverse to make into post V
 
-        eta = self.prior_mean
+        eta = self.prior_mean.copy()
         post_eta = prior_V @ eta
 
         for c in self.get_left_children():
@@ -161,10 +161,12 @@ class Node:
         print("*******************")
         print("For gram "+ self.gram)
         string += "For gram "+ self.gram + "\n"
-        # print("True Mean: ")
-        # print(self.true_mean)
-        # print("Estimated Mean: ")
-        # print(self.est_mean)
+        print("True Mean: ")
+        print(self.true_mean)
+        print("Estimated Mean: ")
+        print(self.est_mean)
+        print("Initial Mean: ")
+        print(self.mean_copies[0])
         print("Difference in true and est mean")
         string += "Difference in true and est mean\n\n"
         for i in range(self.true_mean.shape[0]):
