@@ -57,6 +57,7 @@ class Node:
 
         # cycle boolean
         self.has_run = False
+        self.has_run_prior = False
 
     # updated est mean
     def posterior_mean(self, phi_left, phi_right):
@@ -100,7 +101,7 @@ class Node:
         self.mean_copies.append(self.est_mean.copy())
 
         self.has_run = True
-        #self.prior_mean = None
+        self.has_run_prior = False
         # self.run_sample_mean()
         
 
@@ -122,6 +123,7 @@ class Node:
         self.mean_copies.append(self.est_mean.copy())
 
         self.has_run = True
+        self.has_run_prior = False
         #self.prior_mean = None
         # self.run_sample_mean()
 
@@ -198,6 +200,7 @@ class Node:
         self.prior_mean = eta.reshape(self.p, 1)
         # check is est_mean has been set. if not,
         # est_mean = N(self. prior, self.prior_var)
+        self.has_run_prior = True
         if self.est_mean is None:
             self.est_mean = self.sample_MVN(self.prior_mean, self.prior_var)
         
@@ -294,6 +297,9 @@ class Node:
     
     def get_has_run(self):
         return self.has_run
+    
+    def get_has_run_prior(self):
+        return self.has_run_prior
     
     def __str__(self):
         return self.gram

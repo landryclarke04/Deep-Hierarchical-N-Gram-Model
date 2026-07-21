@@ -73,12 +73,12 @@ class Model:
 
             # call something that goes up down
             # update priors
-            # self.update_prior_mean(self.level1)
+            self.update_prior_mean(self.level1)
 
             #mu = self.sample_MVN(self.post_mean, self.post_var)
 
-            for gram in self.nodes:
-                self.nodes[gram].has_run = False
+            # for gram in self.nodes:
+            #     self.nodes[gram].has_run = False
 
         for gram in self.nodes:
             self.nodes[gram].get_final_mean_est()
@@ -189,18 +189,18 @@ class Model:
         # if visited is None:
         #     visited = set()
 
-        if node.get_prior_mean() is not None:
+        if node.get_has_run_prior():
             return
         # if level 1 we can skip this step
         # ensuring all parents are visited first
         if node.check_parents():
-            if node.left_parent().get_prior_mean() is None:
+            if not node.left_parent().get_has_run_prior():
                 self.update_prior_mean(node.left_parent())
-            if node.right_parent().get_prior_mean() is None:
+            if not node.right_parent().get_has_run_prior():
                 self.update_prior_mean(node.right_parent())
 
         # all parents visited or 1st level node
-        if node.get_prior_mean() is None:
+        if not node.get_has_run_prior():
             level = len(node.gram)
             phi_level = self.phi_collection[level-1]
             # passing correct phi left and right
