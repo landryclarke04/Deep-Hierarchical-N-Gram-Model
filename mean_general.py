@@ -61,6 +61,56 @@ class Node:
 
     # updated est mean
     def posterior_mean(self, phi_left, phi_right):
+        # first sample should be from prior
+        # second we can calculate the variance but then it shouldn't change
+        if len(self.mean_copies) < 2:
+            self.posterior_mean_first_run(phi_left, phi_right)
+            return
+
+        prior_V = np.linalg.inv(self.prior_var)
+        # post variance first
+        post_V = prior_V.copy() # inverse to make into post V
+
+        eta = self.prior_mean.copy()
+        post_eta = prior_V @ eta
+
+        for c in self.get_left_children():
+            # variance
+            child_V = np.linalg.inv(c.get_prior_var())
+            # post_V += phi_right.T @ child_V @ phi_right
+
+            # eta
+            sib_mean = c.left_parent().get_est_mean()
+            child_mean = c.get_est_mean()
+            post_eta += phi_right.T @ child_V @ (child_mean - 
+                                                phi_left @ sib_mean)
+            
+        for c in self.get_right_children():
+            # variance
+            child_V = np.linalg.inv(c.get_prior_var())
+            # post_V += phi_left.T @ child_V @ phi_left
+
+            # eta
+            sib_mean = c.right_parent().get_est_mean()
+            child_mean = c.get_est_mean()
+            post_eta += phi_left.T @ child_V @ (child_mean - 
+                                                phi_right @ sib_mean)
+
+        
+
+        # self.post_var = np.linalg.inv(post_V)
+        self.post_mean = self.post_var @ post_eta
+
+        # self.prior_var = self.post_var.copy()
+
+        self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
+        self.mean_copies.append(self.est_mean.copy())
+
+        self.has_run = True
+        self.has_run_prior = False
+        # self.run_sample_mean()
+
+    def posterior_mean_first_run(self, phi_left, phi_right):
         prior_V = np.linalg.inv(self.prior_var)
         # post variance first
         post_V = prior_V.copy() # inverse to make into post V
@@ -95,17 +145,21 @@ class Node:
         self.post_var = np.linalg.inv(post_V)
         self.post_mean = self.post_var @ post_eta
 
-        # self.prior_var = self.post_var.copy()
-
         self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
         self.mean_copies.append(self.est_mean.copy())
 
         self.has_run = True
         self.has_run_prior = False
-        # self.run_sample_mean()
         
 
     def posterior_data(self, data):
+        # if we have already calculated posterior, just need to sample again
+        if len(self.mean_copies) > 2:
+            self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
+            self.mean_copies.append(self.est_mean.copy())
+            self.has_run = True
+            self.has_run_prior = False
+            return
         # post variance wow
         prior_V = np.linalg.inv(self.prior_var)
         true_sig = np.linalg.inv(self.true_var)
