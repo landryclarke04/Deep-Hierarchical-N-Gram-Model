@@ -100,7 +100,7 @@ class Node:
 
         for c in self.get_left_children():
             # variance
-            child_V = c.get_prior_var_inv()
+            child_V = c.get_prior_var_mod_right()
             # post_V += phi_right.T @ child_V @ phi_right
 
             # eta
@@ -108,18 +108,18 @@ class Node:
             child_mean = c.get_est_mean()
             # post_eta += child_V @ (child_mean - 
             #                                     phi_left @ sib_mean)
-            post_eta += phi_right.T @ child_V @ (child_mean - 
+            post_eta += child_V @ (child_mean - 
                                                 phi_left @ sib_mean)
             
         for c in self.get_right_children():
             # variance
-            child_V = c.get_prior_var_inv()
+            child_V = c.get_prior_var_mod_left()
             # post_V += phi_left.T @ child_V @ phi_left
 
             # eta
             sib_mean = c.right_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta += phi_left.T @ child_V @ (child_mean - 
+            post_eta += child_V @ (child_mean - 
                                                 phi_right @ sib_mean)
 
         
@@ -147,24 +147,24 @@ class Node:
 
         for c in self.get_left_children():
             # variance
-            child_V = c.get_prior_var_inv()
-            post_V += phi_right.T @ child_V @ phi_right
+            child_V = c.get_prior_var_mod_right()
+            post_V += child_V @ phi_right
 
             # eta
             sib_mean = c.left_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta += phi_right.T @ child_V @ (child_mean - 
+            post_eta += child_V @ (child_mean - 
                                                 phi_left @ sib_mean)
             
         for c in self.get_right_children():
             # variance
-            child_V = c.get_prior_var_inv()
-            post_V += phi_left.T @ child_V @ phi_left
+            child_V = c.get_prior_var_mod_left()
+            post_V += child_V @ phi_left
 
             # eta
             sib_mean = c.right_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta += phi_left.T @ child_V @ (child_mean - 
+            post_eta += child_V @ (child_mean - 
                                                 phi_right @ sib_mean)
 
         
@@ -313,18 +313,29 @@ class Node:
         # check edge case (level 1)
         if self.p == 1:
             self.true_mean = self.sample_MVN(Node.mu_omega, self.true_var)
+            self.prior_var_mod_right = self.prior_var_inv.copy()
+            self.prior_var_mod_left = self.prior_var_inv.copy()
         else:
             phi = phi_collection[len(self.gram)-1]
             phi_left = phi.phi_left()
             phi_right = phi.phi_right()
             eta = (phi_left @ self.left_parent().get_true_mean() + phi_right 
                         @ self.right_parent().get_true_mean()).reshape(self.p, 1)
+            self.prior_var_mod_right = phi_right.T @ self.prior_var_inv
+            self.prior_var_mod_left = phi_left.T @ self.prior_var_inv
             # checking last edge case (level 2 needs delta as well)
             if self.p == 3:
                 eta[1][0] = Node.mu_delta[0][0]
             # true_mean should be N(eta, true_var)
             # self.true_mean = eta.reshape(self.p, 1)
             self.true_mean = self.sample_MVN(eta, self.true_var)
+
+        # if len(phi_collection) != len(self.gram):
+        #     phi = phi_collection[len(self.gram)-1]
+        #     phi_left = phi.phi_left()
+        #     phi_right = phi.phi_right()
+        #     self.prior_var_mod_right = phi_right @ self.prior_var_inv
+        #     self.prior_var_mod_left = phi_left @ self.prior_var_inv
 
         if self.has_no_children():
             self.data(Node.n)
