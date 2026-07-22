@@ -94,10 +94,9 @@ def main():
     # for c in model_3.nodes["TH"].right_children:
     #     print(c.gram)
     # print(model_3.nodes["HE"].left_children.gram)
-    for i in range(0, 4):
-        model_3.inference()
-        model_3.nodes["TH"].print_results()
-        model_3.nodes["HE"].print_results()
+    model_3.inference()
+    model_3.nodes["TH"].print_results()
+    model_3.nodes["HE"].print_results()
     # model_3.nodes["T"].print_results()
     # model_3.nodes["THE"].print_results()
     # print(model_3.get_size())
