@@ -4,7 +4,10 @@ from scipy.stats import invwishart
 
 import random
 
+import time
+
 from mean_general import Node
+from mean_general import Phi
 
 class Model:
 
@@ -62,7 +65,13 @@ class Model:
         # step 2: last level posterior
         # just for checking if it works
         print("n = "+str(self.n))
+        start_time = time.perf_counter()
+        
         self.gibbs()
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        print(f"Executed in: {execution_time:.4f} seconds")
         # for k in self.nodes:
         #     node = self.nodes[k]
         #     node.print_results()
@@ -106,31 +115,33 @@ class Model:
 
     def update_posterior_mean(self, node):
         # need to go up the tree once and call posterior for each node
-        for c in node.get_children():
-            if not c.get_has_run():
-                self.update_posterior_mean(c)
+        # for c in node.get_children():
+        #     if not c.get_has_run():
+        #         self.update_posterior_mean(c)
+        for gram in self.nodes:
+            self.nodes[gram].posterior_mean(self.phi_collection)
 
 
-        # node has already been run
-        if node.get_has_run():
-            if node.check_parents():
-                self.update_posterior_mean(node.left_parent())
-                self.update_posterior_mean(node.right_parent())
-            return
+        # # node has already been run
+        # if node.get_has_run():
+        #     if node.check_parents():
+        #         self.update_posterior_mean(node.left_parent())
+        #         self.update_posterior_mean(node.right_parent())
+        #     return
 
-        # print(node.gram)
+        # # print(node.gram)
 
-        level = len(node.gram) +1
-        if node.has_no_children():
-            node.posterior_mean(None, None)
-        else:
-            phi = self.phi_collection[level-1]
-            node.posterior_mean(phi.phi_left(), phi.phi_right())
+        # level = len(node.gram) +1
+        # if node.has_no_children():
+        #     node.posterior_mean(None, None)
+        # else:
+        #     phi = self.phi_collection[level-1]
+        #     node.posterior_mean(phi.phi_left(), phi.phi_right())
         
-        # if node does not have parents we are at the top
-        if node.check_parents():
-            self.update_posterior_mean(node.left_parent())
-            self.update_posterior_mean(node.right_parent())
+        # # if node does not have parents we are at the top
+        # if node.check_parents():
+        #     self.update_posterior_mean(node.left_parent())
+        #     self.update_posterior_mean(node.right_parent())
         
         return
         
@@ -175,6 +186,9 @@ class Model:
     
     def add_gram(self, gram):
         new_node = Node(gram)
+        if gram in self.nodes:
+            return
+        self.nodes[gram] = new_node
 
         if len(gram) > self.depth:
             self.depth = len(gram)
@@ -225,52 +239,58 @@ class Model:
     
     def create_true_mean(self, node):
         # already been set
-        if node.get_true_mean() is not None:
-            return
 
-        # if level 1 we can skip this step
-        # ensuring all parents are visited first
-        if node.check_parents():
-            if node.left_parent().get_true_mean() is None:
-                self.create_true_mean(node.left_parent())
-            if node.right_parent().get_true_mean() is None:
-                self.create_true_mean(node.right_parent())
+        for gram in self.nodes:
+            self.nodes[gram].create_true_mean(self.phi_collection)
+        # if node.get_true_mean() is not None:
+        #     return
 
-        # all parents visited or 1st level node
-        if node.get_true_mean() is None:
-            level = len(node.gram)
-            phi_level = self.phi_collection[level-1]
-            # passing correct phi left and right
-            node.create_true_mean(phi_level.phi_left(),
-                             phi_level.phi_right())
+        # # if level 1 we can skip this step
+        # # ensuring all parents are visited first
+        # if node.check_parents():
+        #     if node.left_parent().get_true_mean() is None:
+        #         self.create_true_mean(node.left_parent())
+        #     if node.right_parent().get_true_mean() is None:
+        #         self.create_true_mean(node.right_parent())
 
-        for child in node.get_children():
-            self.create_true_mean(child)
+        # # all parents visited or 1st level node
+        # if node.get_true_mean() is None:
+        #     level = len(node.gram)
+        #     phi_level = self.phi_collection[level-1]
+        #     # passing correct phi left and right
+        #     node.create_true_mean(phi_level.phi_left(),
+        #                      phi_level.phi_right())
+
+        # for child in node.get_children():
+        #     self.create_true_mean(child)
 
     def update_prior_mean(self, node):
         # if visited is None:
         #     visited = set()
 
-        if node.get_has_run_prior():
-            return
-        # if level 1 we can skip this step
-        # ensuring all parents are visited first
-        if node.check_parents():
-            if not node.left_parent().get_has_run_prior():
-                self.update_prior_mean(node.left_parent())
-            if not node.right_parent().get_has_run_prior():
-                self.update_prior_mean(node.right_parent())
+        for gram in self.nodes:
+            self.nodes[gram].update_prior_mean(self.phi_collection)
 
-        # all parents visited or 1st level node
-        if not node.get_has_run_prior():
-            level = len(node.gram)
-            phi_level = self.phi_collection[level-1]
-            # passing correct phi left and right
-            node.update_prior_mean(phi_level.phi_left(),
-                             phi_level.phi_right())
+        # if node.get_has_run_prior():
+        #     return
+        # # if level 1 we can skip this step
+        # # ensuring all parents are visited first
+        # if node.check_parents():
+        #     if not node.left_parent().get_has_run_prior():
+        #         self.update_prior_mean(node.left_parent())
+        #     if not node.right_parent().get_has_run_prior():
+        #         self.update_prior_mean(node.right_parent())
 
-        for child in node.get_children():
-            self.update_prior_mean(child)
+        # # all parents visited or 1st level node
+        # if not node.get_has_run_prior():
+        #     level = len(node.gram)
+        #     phi_level = self.phi_collection[level-1]
+        #     # passing correct phi left and right
+        #     node.update_prior_mean(phi_level.phi_left(),
+        #                      phi_level.phi_right())
+
+        # for child in node.get_children():
+        #     self.update_prior_mean(child)
 
 
     def get_size(self):
@@ -280,70 +300,3 @@ class Model:
         return self.phi_collection
     
 
-class Phi:
-
-    def __init__(self, level):
-        self.left = None
-        self.right = None
-        self.level = level
-        # number of rows = parameters
-        self.p = 2*level - 1
-        # number of cols (parameters of previous levels)
-        if self.p==1:
-            self.k = 1
-        else:
-            self.k = 2*(level-1) - 1
-
-        # build
-        self.build()
-        
-    def build(self):
-        self.right = np.zeros((self.p, self.k)) # dimensions (parameters of level mean, par of prev level mean)
-        self.left = np.zeros((self.p, self.k))
-        # level 1 is only 1x1
-        if self.level == 1:
-            self.left[0][0] = 1
-            self.right[0][0] = 1
-            return
-        # level 2 is different because of delta
-        if self.level == 2:
-            self.left[0][0] = 1
-            self.right[2][0] = 1
-            return
-        # for all other levels
-
-        # starting with left first two diagonals are 1
-        self.left[0][0] = 1
-        self.left[1][1] = 1
-        # rest are 0.5
-        i = 2
-        while i < self.k:
-            self.left[i][i] = 0.5
-            i+=1
-
-        # right
-        i = 2
-        j = 0
-        # want to stop 2 steps before p
-        while i < (self.p - 2):
-            self.right[i][j] = 0.5
-            i += 1
-            j += 1
-        # setting values at 1
-        self.right[i][j] = 1
-        i+= 1
-        j += 1
-        self.right[i][j] = 1
-        return
-    
-    # getters for each phi
-    def phi_left(self):
-        return self.left
-    
-    def phi_right(self):
-        return self.right
-    
-    def __str__(self):
-        string = "Left Phi at level " + str(self.level) + "\n" + str(self.left) + "\n"
-        string += "Right Phi at level " + str(self.level) + "\n" + str(self.right)
-        return string

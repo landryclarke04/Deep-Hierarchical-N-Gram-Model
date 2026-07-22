@@ -4,6 +4,8 @@ from scipy.stats import invwishart
 
 import random
 
+# from model import Phi
+
 '''
 trying generalization
 '''
@@ -64,11 +66,23 @@ class Node:
         # data
         self.y = None
 
+    def check_post_mean(self, phi_collection):
+        for c in self.get_children():
+            if not c.get_has_run():
+                c.posterior_mean(phi_collection)
+
     # updated est mean
-    def posterior_mean(self, phi_left, phi_right):
+    def posterior_mean(self, phi_collection):
+        self.check_post_mean(phi_collection)
+        if self.has_run:
+            return
         if self.y is not None:
             self.posterior_data()
             return
+        # print(self.gram)
+        phi = phi_collection[len(self.gram)]
+        phi_left = phi.phi_left()
+        phi_right = phi.phi_right()
         # first sample should be from prior
         # second we can calculate the variance but then it shouldn't change
         if len(self.mean_copies) < 2:
@@ -184,6 +198,7 @@ class Node:
         # post eta
         y_bar = np.mean(self.y, axis=0).reshape(self.p, 1)
         eta = self.prior_mean
+        # print(self.gram)
         self.post_mean = self.post_var @ (prior_V@eta + n*true_sig @ y_bar)
 
         # self.prior_var = self.post_var.copy()
@@ -253,12 +268,23 @@ class Node:
 
     # prior and true mean methods
 
-    def update_prior_mean(self, phi_left, phi_right):
+    def update_prior_mean(self, phi_collection):
+        if self.check_parents():
+            self.left_par.update_prior_mean(phi_collection)
+            self.right_par.update_prior_mean(phi_collection)
+        if self.has_run_prior:
+            # if self.check_parents():
+            #     self.left_par.update_prior_mean(phi_collection)
+            #     self.right_par.update_prior_mean(phi_collection)
+            return
         self.has_run = False
         # check edge case (level 1)
         if self.p == 1:
             eta = Node.mu_omega
         else:
+            phi = phi_collection[len(self.gram)-1]
+            phi_left = phi.phi_left()
+            phi_right = phi.phi_right()
             eta = (phi_left @ self.left_parent().get_est_mean() + phi_right 
                         @ self.right_parent().get_est_mean())
             # checking last edge case (level 2 needs delta as well)
@@ -274,11 +300,19 @@ class Node:
             self.est_mean = self.sample_MVN(self.prior_mean, self.prior_var)
         
 
-    def create_true_mean(self, phi_left, phi_right):
+    def create_true_mean(self, phi_collection):
+        if self.check_parents():
+            self.left_par.create_true_mean(phi_collection)
+            self.right_par.create_true_mean(phi_collection)
+        if self.true_mean is not None:
+            return
         # check edge case (level 1)
         if self.p == 1:
             self.true_mean = self.sample_MVN(Node.mu_omega, self.true_var)
         else:
+            phi = phi_collection[len(self.gram)-1]
+            phi_left = phi.phi_left()
+            phi_right = phi.phi_right()
             eta = (phi_left @ self.left_parent().get_true_mean() + phi_right 
                         @ self.right_parent().get_true_mean()).reshape(self.p, 1)
             # checking last edge case (level 2 needs delta as well)
@@ -378,3 +412,73 @@ class Node:
     
     def __str__(self):
         return self.gram
+
+
+
+class Phi:
+
+    def __init__(self, level):
+        self.left = None
+        self.right = None
+        self.level = level
+        # number of rows = parameters
+        self.p = 2*level - 1
+        # number of cols (parameters of previous levels)
+        if self.p==1:
+            self.k = 1
+        else:
+            self.k = 2*(level-1) - 1
+
+        # build
+        self.build()
+        
+    def build(self):
+        self.right = np.zeros((self.p, self.k)) # dimensions (parameters of level mean, par of prev level mean)
+        self.left = np.zeros((self.p, self.k))
+        # level 1 is only 1x1
+        if self.level == 1:
+            self.left[0][0] = 1
+            self.right[0][0] = 1
+            return
+        # level 2 is different because of delta
+        if self.level == 2:
+            self.left[0][0] = 1
+            self.right[2][0] = 1
+            return
+        # for all other levels
+
+        # starting with left first two diagonals are 1
+        self.left[0][0] = 1
+        self.left[1][1] = 1
+        # rest are 0.5
+        i = 2
+        while i < self.k:
+            self.left[i][i] = 0.5
+            i+=1
+
+        # right
+        i = 2
+        j = 0
+        # want to stop 2 steps before p
+        while i < (self.p - 2):
+            self.right[i][j] = 0.5
+            i += 1
+            j += 1
+        # setting values at 1
+        self.right[i][j] = 1
+        i+= 1
+        j += 1
+        self.right[i][j] = 1
+        return
+    
+    # getters for each phi
+    def phi_left(self):
+        return self.left
+    
+    def phi_right(self):
+        return self.right
+    
+    def __str__(self):
+        string = "Left Phi at level " + str(self.level) + "\n" + str(self.left) + "\n"
+        string += "Right Phi at level " + str(self.level) + "\n" + str(self.right)
+        return string

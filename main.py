@@ -8,21 +8,28 @@ import string
 
 import sys
 
-sys.setrecursionlimit(2000)
+# sys.setrecursionlimit(2000)
 
 from mean_general import Node
 from model import Model
-from model import Phi # for testing purposes
 
 
 def test_build(gram, n):
     model = Model(gram, n)
-    print("Number of characters added: " + str(len(string.ascii_uppercase)))
-    for l in list(string.ascii_uppercase):
+    ch = string.printable
+    # ch = string.ascii_uppercase
+    print("Number of characters added: " + str(len(ch)))
+    for l in list(ch):
         model.add_gram(gram[:-1] + l)
         model.add_gram(l + gram[:-1])
         model.add_gram(gram[1:] + l)
         # model.add_gram(l + gram[1:])
+    # print(model.nodes["ITH"].y)
+    # for g in model.nodes:
+    #     node = model.nodes[g]
+    #     # print("clear")
+    #     if node.y is not None:
+    #         print(g)
     # model.add_gram("THB")
     # model.add_gram("THA")
     # model.add_gram("THC")
