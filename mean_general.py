@@ -46,7 +46,11 @@ class Node:
         # variance variables
         self.true_var = self.get_IWH_var()
         self.prior_var = self.get_IWH_var()
+        self.prior_var_inv = np.linalg.inv(self.prior_var)
         self.post_var = None
+
+        self.prior_var_mod_left = None
+        self.prior_var_mod_right = None
 
         # mean variables
         self.true_mean = None
@@ -88,28 +92,28 @@ class Node:
         if len(self.mean_copies) < 2:
             self.posterior_mean_first_run(phi_left, phi_right)
             return
-
-        prior_V = np.linalg.inv(self.prior_var)
         # post variance first
-        post_V = prior_V.copy() # inverse to make into post V
+        # post_V = prior_V.copy() # inverse to make into post V
 
         eta = self.prior_mean.copy()
-        post_eta = prior_V @ eta
+        post_eta = self.prior_var_inv @ eta
 
         for c in self.get_left_children():
             # variance
-            child_V = np.linalg.inv(c.get_prior_var())
+            child_V = c.get_prior_var_inv()
             # post_V += phi_right.T @ child_V @ phi_right
 
             # eta
             sib_mean = c.left_parent().get_est_mean()
             child_mean = c.get_est_mean()
+            # post_eta += child_V @ (child_mean - 
+            #                                     phi_left @ sib_mean)
             post_eta += phi_right.T @ child_V @ (child_mean - 
                                                 phi_left @ sib_mean)
             
         for c in self.get_right_children():
             # variance
-            child_V = np.linalg.inv(c.get_prior_var())
+            child_V = c.get_prior_var_inv()
             # post_V += phi_left.T @ child_V @ phi_left
 
             # eta
@@ -133,16 +137,17 @@ class Node:
         # self.run_sample_mean()
 
     def posterior_mean_first_run(self, phi_left, phi_right):
-        prior_V = np.linalg.inv(self.prior_var)
         # post variance first
-        post_V = prior_V.copy() # inverse to make into post V
+        post_V = self.prior_var_inv.copy() # inverse to make into post V
+        # self.prior_var_mod_left = phi_left @ self.prior_var_inv
+        # self.prior_var_mod_right = phi_right @ self.prior_var_inv
 
         eta = self.prior_mean.copy()
-        post_eta = prior_V @ eta
+        post_eta = self.prior_var_inv @ eta
 
         for c in self.get_left_children():
             # variance
-            child_V = np.linalg.inv(c.get_prior_var())
+            child_V = c.get_prior_var_inv()
             post_V += phi_right.T @ child_V @ phi_right
 
             # eta
@@ -153,7 +158,7 @@ class Node:
             
         for c in self.get_right_children():
             # variance
-            child_V = np.linalg.inv(c.get_prior_var())
+            child_V = c.get_prior_var_inv()
             post_V += phi_left.T @ child_V @ phi_left
 
             # eta
@@ -190,16 +195,15 @@ class Node:
             self.has_run_prior = False
             return
         # post variance wow
-        prior_V = np.linalg.inv(self.prior_var)
         true_sig = np.linalg.inv(self.true_var)
         n = self.y.shape[0]
-        self.post_var = np.linalg.inv(prior_V + n* true_sig)
+        self.post_var = np.linalg.inv(self.prior_var_inv + n* true_sig)
 
         # post eta
         y_bar = np.mean(self.y, axis=0).reshape(self.p, 1)
         eta = self.prior_mean
         # print(self.gram)
-        self.post_mean = self.post_var @ (prior_V@eta + n*true_sig @ y_bar)
+        self.post_mean = self.post_var @ (self.prior_var_inv@eta + n*true_sig @ y_bar)
 
         # self.prior_var = self.post_var.copy()
 
@@ -400,6 +404,15 @@ class Node:
     
     def get_prior_var(self):
         return self.prior_var
+
+    def get_prior_var_inv(self):
+        return self.prior_var_inv
+
+    def get_prior_var_mod_left(self):
+        return self.prior_var_mod_left
+
+    def get_prior_var_mod_right(self):
+        return self.prior_var_mod_right
     
     def get_post_var(self):
         return self.post_var

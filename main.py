@@ -16,6 +16,13 @@ from model import Model
 
 def test_build(gram, n):
     model = Model(gram, n)
+    model.inference()
+    print_nodes(model)
+    return model
+
+def build(gram):
+    n = 10
+    model = Model(gram, n)
     ch = string.printable
     # ch = string.ascii_uppercase
     print("Number of characters added: " + str(len(ch)))
@@ -25,6 +32,7 @@ def test_build(gram, n):
         model.add_gram(gram[1:] + l)
         # model.add_gram(l + gram[1:])
     # print(model.nodes["ITH"].y)
+    model.inference()
     # for g in model.nodes:
     #     node = model.nodes[g]
     #     # print("clear")
@@ -92,6 +100,10 @@ def check_node(node):
 def find_count(gram):
     return (len(gram)*(len(gram)+1))//2
 
+def print_nodes(model):
+    for gram in model.nodes:
+        model.nodes[gram].print_results()
+
 def main():
     # gram_3 = "THE"
     # gram_3 = "EXODUS"
@@ -101,9 +113,11 @@ def main():
     # for c in model_3.nodes["TH"].right_children:
     #     print(c.gram)
     # print(model_3.nodes["HE"].left_children.gram)
-    model_3.inference()
-    model_3.nodes["TH"].print_results()
-    model_3.nodes["HE"].print_results()
+    # model_3.inference()
+    # model_3.nodes["TH"].print_results()
+    # model_3.nodes["HE"].print_results()
+    # model_3.nodes["T"].print_results()
+    # model_3.nodes["WT"].print_results()
     # model_3.nodes["T"].print_results()
     # model_3.nodes["THE"].print_results()
     # print(model_3.get_size())
