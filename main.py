@@ -4,14 +4,39 @@ from scipy.stats import invwishart
 
 import random
 
+import string
+
+import sys
+
+sys.setrecursionlimit(2000)
+
 from mean_general import Node
 from model import Model
 from model import Phi # for testing purposes
 
 
-def test_build(gram):
-    model = Model(gram)
-    traverse(model.root)
+def test_build(gram, n):
+    model = Model(gram, n)
+    print("Number of characters added: " + str(len(string.ascii_uppercase)))
+    for l in list(string.ascii_uppercase):
+        model.add_gram(gram[:-1] + l)
+        model.add_gram(l + gram[:-1])
+        model.add_gram(gram[1:] + l)
+        # model.add_gram(l + gram[1:])
+    # model.add_gram("THB")
+    # model.add_gram("THA")
+    # model.add_gram("THC")
+    # model.add_gram("THD")
+    # model.add_gram("THF")
+    # model.add_gram("THG")
+    # model.add_gram("THH")
+    # model.add_gram("THJ")
+    # model.add_gram("THL")
+    # model.add_gram("THM")
+
+    # for gram in model.nodes:
+    #     check_node(model.nodes[gram])
+    # traverse(model.root)
     return model
 
 def traverse(node, visited=None):
@@ -65,11 +90,15 @@ def main():
     # gram_3 = "EXODUS"
     gram_3 = "THE"
 
-    model_3 = test_build(gram_3)
+    model_3 = test_build(gram_3, 500)
     # for c in model_3.nodes["TH"].right_children:
     #     print(c.gram)
     # print(model_3.nodes["HE"].left_children.gram)
-    model_3.inference(500)
+    model_3.inference()
+    model_3.nodes["TH"].print_results()
+    model_3.nodes["HE"].print_results()
+    # model_3.nodes["T"].print_results()
+    # model_3.nodes["THE"].print_results()
     # print(model_3.get_size())
 
     # print(find_count(gram_3))

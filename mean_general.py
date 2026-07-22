@@ -26,6 +26,8 @@ class Node:
         [0]
     ]).reshape(3,1)
     mu_delta = np.random.multivariate_normal(eta_delta, sig_delta).reshape(1, 1)
+
+    n = 500
     
     def __init__(self, gram):
         self.gram = gram
@@ -59,8 +61,14 @@ class Node:
         self.has_run = False
         self.has_run_prior = False
 
+        # data
+        self.y = None
+
     # updated est mean
     def posterior_mean(self, phi_left, phi_right):
+        if self.y is not None:
+            self.posterior_data()
+            return
         # first sample should be from prior
         # second we can calculate the variance but then it shouldn't change
         if len(self.mean_copies) < 2:
@@ -150,9 +158,16 @@ class Node:
 
         self.has_run = True
         self.has_run_prior = False
-        
 
-    def posterior_data(self, data):
+    def data(self, n):
+        self.y = np.random.multivariate_normal(
+            self.get_true_mean().flatten(),
+            self.get_true_var(),
+            size=n
+        )
+            
+
+    def posterior_data(self):
         # if we have already calculated posterior, just need to sample again
         if len(self.mean_copies) > 2:
             self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
@@ -163,11 +178,11 @@ class Node:
         # post variance wow
         prior_V = np.linalg.inv(self.prior_var)
         true_sig = np.linalg.inv(self.true_var)
-        n = data.shape[0]
+        n = self.y.shape[0]
         self.post_var = np.linalg.inv(prior_V + n* true_sig)
 
         # post eta
-        y_bar = np.mean(data, axis=0).reshape(self.p, 1)
+        y_bar = np.mean(self.y, axis=0).reshape(self.p, 1)
         eta = self.prior_mean
         self.post_mean = self.post_var @ (prior_V@eta + n*true_sig @ y_bar)
 
@@ -190,7 +205,7 @@ class Node:
         mu_est = mu_post.mean(axis=0)
 
         self.est_mean = np.array(mu_est).reshape(self.p, 1)
-        self.print_results()
+        # self.print_results()
 
     
     def run_sample_mean(self):
@@ -272,6 +287,9 @@ class Node:
             # true_mean should be N(eta, true_var)
             # self.true_mean = eta.reshape(self.p, 1)
             self.true_mean = self.sample_MVN(eta, self.true_var)
+
+        if self.has_no_children():
+            self.data(Node.n)
             
             
         
@@ -333,6 +351,9 @@ class Node:
     # returns ALL the children
     def get_children(self):
         return self.left_children | self.right_children
+    
+    def has_no_children(self):
+        return len(self.left_children) == 0 and len(self.right_children) == 0
     
     def get_left_children(self):
         return self.left_children
