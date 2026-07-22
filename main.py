@@ -48,6 +48,8 @@ def build(gram):
     # model.add_gram("THJ")
     # model.add_gram("THL")
     # model.add_gram("THM")
+    model.nodes["TH"].print_results()
+    model.nodes["HE"].print_results()
 
     # for gram in model.nodes:
     #     check_node(model.nodes[gram])
@@ -109,7 +111,8 @@ def main():
     # gram_3 = "EXODUS"
     gram_3 = "THE"
 
-    model_3 = test_build(gram_3, 500)
+    # model_3 = test_build(gram_3, 500)
+    build(gram_3)
     # for c in model_3.nodes["TH"].right_children:
     #     print(c.gram)
     # print(model_3.nodes["HE"].left_children.gram)
