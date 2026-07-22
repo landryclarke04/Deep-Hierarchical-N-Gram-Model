@@ -17,8 +17,8 @@ from model import Phi # for testing purposes
 
 def test_build(gram, n):
     model = Model(gram, n)
-    print("Number of characters added: " + str(len(string.ascii_uppercase)))
-    for l in list(string.ascii_uppercase):
+    print("Number of characters added: " + str(len(string.printable)))
+    for l in list(string.printable):
         model.add_gram(gram[:-1] + l)
         model.add_gram(l + gram[:-1])
         model.add_gram(gram[1:] + l)
@@ -94,9 +94,10 @@ def main():
     # for c in model_3.nodes["TH"].right_children:
     #     print(c.gram)
     # print(model_3.nodes["HE"].left_children.gram)
-    model_3.inference()
-    model_3.nodes["TH"].print_results()
-    model_3.nodes["HE"].print_results()
+    for i in range(0, 4):
+        model_3.inference()
+        model_3.nodes["TH"].print_results()
+        model_3.nodes["HE"].print_results()
     # model_3.nodes["T"].print_results()
     # model_3.nodes["THE"].print_results()
     # print(model_3.get_size())

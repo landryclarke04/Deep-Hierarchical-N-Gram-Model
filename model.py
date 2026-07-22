@@ -2,9 +2,13 @@ import numpy as np
 from scipy.stats import multivariate_normal
 from scipy.stats import invwishart
 
+import time
+
 import random
 
 from mean_general import Node
+
+
 
 class Model:
 
@@ -62,7 +66,12 @@ class Model:
         # step 2: last level posterior
         # just for checking if it works
         print("n = "+str(self.n))
+        start_time = time.perf_counter()
         self.gibbs()
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        print(f"Executed in: {execution_time:.4f} seconds")
         # for k in self.nodes:
         #     node = self.nodes[k]
         #     node.print_results()
