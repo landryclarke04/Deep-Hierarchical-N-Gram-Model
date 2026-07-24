@@ -11,6 +11,9 @@ from matplotlib.lines import Line2D
 
 from mean_general import Node
 from model import Model
+import math
+
+from itertools import product
 
 
 def test_build(gram, n):
@@ -33,6 +36,8 @@ def build(gram):
     model.inference()
     model.nodes["TH"].print_results()
     model.nodes["HE"].print_results()
+
+    combinations = [''.join(item) for item in product(ch, repeat=3)]
     return model
 
 def check_true_mean(node):
@@ -183,8 +188,15 @@ def make_one_learning_plot(model):
     true_means = []
     post_means = []
     post_stds = []
+    grams = []
     # starting with 5
-    grams = ["T", "TH", "HE", "H", "THE", "E"]
+    all_grams = model.nodes.keys()
+    # getting no tri-grams
+    no_tri_grams = [g for g in all_grams if len(g) != 3]
+    unique_numbers = random.sample(range(0, len(no_tri_grams)), 10)
+    for i in range(len(unique_numbers)):
+        grams.append(no_tri_grams[unique_numbers[i]])
+    
     grams_mod = []
     x = grams_mod
     
@@ -192,16 +204,17 @@ def make_one_learning_plot(model):
     for g in grams:
         
         node = model.nodes[g]
-        # i = random.randint(0, node.p-1)
-        i = 0
+        i = random.randint(0, node.p-1)
+        # i = 0
         g += "[" + str(i) + "]"
         grams_mod.append(g)
-        mean = node.get_prior_mean().flatten()[i]
+        mean = node.mean_copies[0].flatten()[i]
         prior_means.append(mean)
         true_mean = node.get_true_mean().flatten()[i]
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # prior_std = np.sqrt((node.prior_var[i][i]))
-        prior_std = abs(mean-true_mean)/2
+        post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
+        prior_std = post_std
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # prior_std = np.sqrt((node.prior_var[i][i]))
         # prior_std = abs((0.5+mean) - (mean-0.5))/4
@@ -212,7 +225,7 @@ def make_one_learning_plot(model):
         post_means.append(node.get_est_mean().flatten()[i])
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # post_std = np.sqrt((node.post_var[i][i]))
-        post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
+        
         # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
         # print(np.sqrt(np.diag(node.prior_var)))
         post_stds.append(2*post_std)
@@ -234,7 +247,7 @@ def make_one_learning_plot(model):
         yerr=2*prior_stds,
         fmt='o',
         capsize=4,
-        label='Prior'
+        label='Initial Mean ±2σ'
     )
 
     ax.errorbar(
@@ -243,7 +256,7 @@ def make_one_learning_plot(model):
         yerr=2*post_stds,
         fmt='s',
         capsize=4,
-        label='Posterior'
+        label='Posterior ±2σ'
     )
 
     # Truth
@@ -259,7 +272,15 @@ def make_one_learning_plot(model):
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=45)
-    ax.legend()
+    ax.legend(
+        loc='center left',
+        bbox_to_anchor=(1.02, 0.5)
+    )
+    ax.set_title(
+        "Learning Phase:\n"
+        "[i] correspond to component of mean chosen starting at 0",
+        fontsize=10
+    )
 
     plt.tight_layout()
     plt.show()
@@ -274,24 +295,36 @@ def make_M_plot(model):
     post_stds = []
     m_values = []
     # starting with 5
-    grams = ["HER", "THL", "HEM", "THW", "THE"]
+    # grams = ["HER", "THL", "HEM", "THW", "THE"]
+    all_grams = model.nodes.keys()
+    # getting only tri-grams
+    tri_grams = [g for g in all_grams if len(g) == 3]
+    grams = []
+    for m in Node.M:
+        grams += M_helper(tri_grams, m, model)
     grams_mod = []
     x = grams_mod
+
     
     labels = grams_mod
     for g in grams:
         
         node = model.nodes[g]
-        # i = random.randint(0, node.p-1)
-        i = 0
+        i = random.randint(0, node.p-1)
+        # i = 0
         g += "[" + str(i) + "]"
         grams_mod.append(g)
-        mean = node.get_prior_mean().flatten()[i]
+        # mean = node.get_prior_mean().flatten()[i]
+        mean = node.mean_copies[0].flatten()[i]
         prior_means.append(mean)
         true_mean = node.get_true_mean().flatten()[i]
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # prior_std = np.sqrt((node.prior_var[i][i]))
-        prior_std = abs(mean-true_mean)/2
+        s = abs(mean-true_mean)
+        # if node.get_m() != 0:
+        #     s = s/math.sqrt(node.get_m())
+        post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
+        prior_std = post_std
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # prior_std = np.sqrt((node.prior_var[i][i]))
         # prior_std = abs((0.5+mean) - (mean-0.5))/4
@@ -302,21 +335,23 @@ def make_M_plot(model):
         post_means.append(node.get_est_mean().flatten()[i])
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # post_std = np.sqrt((node.post_var[i][i]))
-        post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
+        
         # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
         # print(np.sqrt(np.diag(node.prior_var)))
         post_stds.append(2*post_std)
         m_values.append(node.get_m())
 
     m_colors = {
-        0: 'tab:pink',
-        2: (220/255, 206/255, 7/255), # golden yellow
-        10: 'tab:green',
-        100: (17/255, 48/255, 135/255), # dark blue
-        500: 'tab:purple'
+        0: (2/255, 8/255, 106/255),
+        2: (144/255, 41/255, 43/255),
+        10: (208/255, 44/255, 129/255),
+        100: (0/255, 159/255, 136/255), 
+        500: (91/255, 47/255, 110/255)
     }
 
-    sort_idx = np.argsort(true_means)[::-1] 
+    # sort_idx = np.argsort(true_means)[::-1] 
+    sort_idx = np.argsort(m_values)[::-1] 
+    m_values        = np.array(m_values)[sort_idx]
     true_means      = np.array(true_means)[sort_idx]
     prior_means     = np.array(prior_means)[sort_idx]
     prior_stds      = np.array(prior_stds)[sort_idx]
@@ -325,7 +360,7 @@ def make_M_plot(model):
 
     labels = np.array(labels)[sort_idx]
     x = np.arange(len(labels))
-    offset = 0.15
+    offset = 0.2
 
     ax.errorbar(
         x - offset,
@@ -333,7 +368,7 @@ def make_M_plot(model):
         yerr=2*prior_stds,
         fmt='o',
         capsize=4,
-        label='Prior'
+        label='Initial Mean ±2σ'
     )
 
     ax.errorbar(
@@ -342,7 +377,7 @@ def make_M_plot(model):
         yerr=2*post_stds,
         fmt='s',
         capsize=4,
-        label='Posterior'
+        label='Posterior Mean ±2σ'
     )
 
     # Truth
@@ -364,13 +399,121 @@ def make_M_plot(model):
         Line2D([0], [0], color=color, lw=4, label=f'm = {m}')
         for m, color in m_colors.items()
     ]
+    # ax.legend(
+    #     loc='center left',
+    #     bbox_to_anchor=(1.02, 0.5)
+    # )
 
-    ax.legend(handles=ax.get_legend_handles_labels()[0] + legend_handles)
+    ax.legend(handles=ax.get_legend_handles_labels()[0] + legend_handles,
+                loc='center left',
+                bbox_to_anchor=(1.02, 0.5)
+    )
     # ax.legend()
+    ax.set_xlabel("Tri-gram where [i] denotes the index of a randomly chosen component of the mean vector, starting at 0")
+    ax.set_ylabel("Mean Value")
+    ax.set_title(
+        "Learning Phase for Tri-grams Where Sample Size, m, Varies",
+        fontsize=10
+    )
+   
 
     plt.tight_layout()
     plt.show()
     return
+
+def M_helper(tri_grams, m, model):
+    m_gram = []
+    i = 0
+    while len(m_gram) < 2:
+        i = random.randint(0, len(tri_grams)-1)
+        if model.nodes[tri_grams[i]].m == m:
+            if len(m_gram) > 0:
+                if tri_grams[i] != m_gram[0]:
+                    m_gram.append(tri_grams[i])
+            else:
+                m_gram.append(tri_grams[i])
+            
+            # tri_grams.pop(i)
+    return m_gram
+
+def make_predictive_plot(model):
+    fig, ax = plt.subplots(figsize=(10, 6))
+    grams = ["T", "H", "E", "TH", "HE", "THE"]
+    stds = []
+    mod_grams = []
+    true_means = []
+    
+    col_y = []
+    for g in grams:
+        
+        for i in range(0, len(g)*2-1, 2):
+            new_y = []
+            mod_grams.append(g + "[" + str(i) + "]")
+            lower, upper = np.quantile(new_y, [0.025, 0.975])
+            
+            node = model.nodes[g]
+            true_means.append(node.get_true_mean().flatten()[i])
+            for mu in node.mean_copies:
+                y = node.sample_MVN(mu, node.true_var)
+                new_y.append(y.flatten().copy())
+            stds.append(2*np.std(np.array(new_y), axis=0)[i])
+            mean_pred = np.array(new_y).mean(axis=0)[i]
+            col_y.append(mean_pred)
+
+    labels = mod_grams
+    x = np.arange(len(labels))
+
+    ax.errorbar(
+        x,
+        col_y,
+        yerr=stds,
+        color = (91/255, 47/255, 110/255),
+        fmt='o',
+        capsize=4,
+        label='Preditive Posterior Mean ±2σ'
+    )
+
+    # Truth
+    ax.scatter(
+        x,
+        true_means,
+        marker='*',
+        color = "red",
+        s=150,
+        label='True Mean',
+        zorder=5
+    )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45)
+    # ax.legend(
+    #     loc='center left',
+    #     bbox_to_anchor=(1.02, 0.5)
+    # )
+
+    ax.legend()
+    ax.set_title(
+        "Predictive Posterior Mean Compared to True Mean Focused on \"THE\":\n"
+        "Taken after adding all possible uppercase tri-grams (total of 104) containing \"TH\" and \"HE\"",
+        fontsize=10
+    )
+    # fig.text(
+    #     0.85, 0.5,
+    #     "Notes:\n"
+    #     "• Colored x-axis labels indicate sample size m.\n"
+    #     "• Values correspond to component i=2 of each mean vector.\n"
+    #     "• Error bars represent ±2 standard deviations.",
+    #     fontsize=9,
+    #     va='center'
+    # )
+    ax.set_xlabel("Possible n-grams made from tri-gram \"THE\"")
+    ax.set_ylabel("Mean Value")
+
+    plt.tight_layout()
+    plt.show()
+    return
+    
+
 
 def main():
     # gram_3 = "THE"
@@ -379,41 +522,13 @@ def main():
 
     # model_3 = test_build(gram_3, 500)
     model = build(gram_3)
+
+    make_predictive_plot(model)
     # make_plot_prior(model)
     # make_plot_post(model)
     # make_leanring_plot(model)
     # make_one_learning_plot(model)
-    make_M_plot(model)
-    # for c in model_3.nodes["TH"].right_children:
-    #     print(c.gram)
-    # print(model_3.nodes["HE"].left_children.gram)
-    # model_3.inference()
-    # model_3.nodes["TH"].print_results()
-    # model_3.nodes["HE"].print_results()
-    # model_3.nodes["T"].print_results()
-    # model_3.nodes["WT"].print_results()
-    # model_3.nodes["T"].print_results()
-    # model_3.nodes["THE"].print_results()
-    # print(model_3.get_size())
-
-    # print(find_count(gram_3))
-
-    # gram_ex = "EXODUS"
-    # model_ex = test_build(gram_ex)
-    # model_ex.inference(500)
-    # print(model_ex.y.shape)
-    # print(model_ex.get_size())
-
-    # print(find_count(gram_ex))
-
-    # phi = model_ex.get_phi()
-    # for p in phi:
-    #     print(p)
-    #print(phi[5])
-
-    #model_4 = test_build("THER")
-
-    #model_ex = test_build("EXODUS")
+    # make_M_plot(model)
     
     return 0
 main()

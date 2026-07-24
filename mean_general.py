@@ -30,6 +30,8 @@ class Node:
     mu_delta = np.random.multivariate_normal(eta_delta, sig_delta).reshape(1, 1)
 
     M = [500, 100, 10, 2, 0]
+
+    m = 0
     
     def __init__(self, gram):
         self.gram = gram
@@ -69,8 +71,8 @@ class Node:
 
         # data
         self.y = None
-        self.m = Node.M[random.randint(0, 4)]
-        
+        self.m = None
+
     def check_post_mean(self, phi_collection):
         for c in self.get_children():
             if not c.get_has_run():
@@ -347,6 +349,13 @@ class Node:
         #     self.prior_var_mod_left = phi_left @ self.prior_var_inv
 
         if self.has_no_children():
+            if self.gram == "THE":
+                self.m = 500
+            else:
+                self.m = Node.M[Node.m]
+            Node.m += 1
+            if Node.m >= len(Node.M):
+                Node.m = 0
             self.data()
             
             
