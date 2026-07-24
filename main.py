@@ -213,14 +213,15 @@ def make_one_learning_plot(model):
         true_mean = node.get_true_mean().flatten()[i]
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # prior_std = np.sqrt((node.prior_var[i][i]))
-        post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
+        post_std = abs(np.quantile(np.array(node.mean_copies), [0.975])[0])
+        # post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
         prior_std = post_std
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # prior_std = np.sqrt((node.prior_var[i][i]))
         # prior_std = abs((0.5+mean) - (mean-0.5))/4
         # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
         # print(np.sqrt(np.diag(node.prior_var)))
-        prior_stds.append(2*prior_std)
+        prior_stds.append(prior_std)
         true_means.append(node.get_true_mean().flatten()[i])
         post_means.append(node.get_est_mean().flatten()[i])
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
@@ -228,7 +229,7 @@ def make_one_learning_plot(model):
         
         # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
         # print(np.sqrt(np.diag(node.prior_var)))
-        post_stds.append(2*post_std)
+        post_stds.append(post_std)
 
     sort_idx = np.argsort(true_means)[::-1] 
     true_means      = np.array(true_means)[sort_idx]
@@ -244,7 +245,7 @@ def make_one_learning_plot(model):
     ax.errorbar(
         x - offset,
         prior_means,
-        yerr=2*prior_stds,
+        yerr=prior_stds,
         fmt='o',
         capsize=4,
         label='Initial Mean ±2σ'
@@ -253,7 +254,7 @@ def make_one_learning_plot(model):
     ax.errorbar(
         x + offset,
         post_means,
-        yerr=2*post_stds,
+        yerr=post_stds,
         fmt='s',
         capsize=4,
         label='Posterior ±2σ'
@@ -273,14 +274,31 @@ def make_one_learning_plot(model):
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=45)
     ax.legend(
-        loc='center left',
-        bbox_to_anchor=(1.02, 0.5)
+        # loc='center left',
+        # bbox_to_anchor=(1.02, 0.5)
     )
     ax.set_title(
         "Learning Phase:\n"
         "[i] correspond to component of mean chosen starting at 0",
         fontsize=10
     )
+    table_data = [
+        ['Blue',   'm = 10'],
+        ['Orange', 'm = 50'],
+        ['Green',  'm = 100'],
+        ['Red',    'm = 500'],
+        ['Purple', 'm = 1000']
+    ]
+
+    table = plt.table(
+        cellText=table_data,
+        colLabels=['Color', 'Sample Size'],
+        loc='center left',
+        bbox=[1.05, 0.25, 0.3, 0.5],
+        cellLoc='center'
+    )
+
+    table.scale(1, 1.5)
 
     plt.tight_layout()
     plt.show()
@@ -323,14 +341,15 @@ def make_M_plot(model):
         s = abs(mean-true_mean)
         # if node.get_m() != 0:
         #     s = s/math.sqrt(node.get_m())
-        post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
+        post_std = abs(np.quantile(np.array(node.mean_copies), [0.975])[0])
+        # post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
         prior_std = post_std
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # prior_std = np.sqrt((node.prior_var[i][i]))
         # prior_std = abs((0.5+mean) - (mean-0.5))/4
         # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
         # print(np.sqrt(np.diag(node.prior_var)))
-        prior_stds.append(2*prior_std)
+        prior_stds.append(prior_std)
         true_means.append(node.get_true_mean().flatten()[i])
         post_means.append(node.get_est_mean().flatten()[i])
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
@@ -338,7 +357,7 @@ def make_M_plot(model):
         
         # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
         # print(np.sqrt(np.diag(node.prior_var)))
-        post_stds.append(2*post_std)
+        post_stds.append(post_std)
         m_values.append(node.get_m())
 
     m_colors = {
@@ -365,7 +384,7 @@ def make_M_plot(model):
     ax.errorbar(
         x - offset,
         prior_means,
-        yerr=2*prior_stds,
+        yerr=prior_stds,
         fmt='o',
         capsize=4,
         label='Initial Mean ±2σ'
@@ -374,7 +393,7 @@ def make_M_plot(model):
     ax.errorbar(
         x + offset,
         post_means,
-        yerr=2*post_stds,
+        yerr=post_stds,
         fmt='s',
         capsize=4,
         label='Posterior Mean ±2σ'
@@ -449,15 +468,18 @@ def make_predictive_plot(model):
         for i in range(0, len(g)*2-1, 2):
             new_y = []
             mod_grams.append(g + "[" + str(i) + "]")
-            lower, upper = np.quantile(new_y, [0.025, 0.975])
+            
             
             node = model.nodes[g]
             true_means.append(node.get_true_mean().flatten()[i])
             for mu in node.mean_copies:
                 y = node.sample_MVN(mu, node.true_var)
-                new_y.append(y.flatten().copy())
-            stds.append(2*np.std(np.array(new_y), axis=0)[i])
-            mean_pred = np.array(new_y).mean(axis=0)[i]
+                new_y.append(y.flatten().copy()[i])
+            std = abs(np.quantile(np.array(new_y), [0.975])[0])
+            # print(std)
+            # stds.append(2*np.std(np.array(new_y), axis=0)[i])
+            stds.append(std)
+            mean_pred = np.array(new_y).mean(axis=0)
             col_y.append(mean_pred)
 
     labels = mod_grams
@@ -523,11 +545,11 @@ def main():
     # model_3 = test_build(gram_3, 500)
     model = build(gram_3)
 
-    make_predictive_plot(model)
+    # make_predictive_plot(model)
     # make_plot_prior(model)
     # make_plot_post(model)
     # make_leanring_plot(model)
-    # make_one_learning_plot(model)
+    make_one_learning_plot(model)
     # make_M_plot(model)
     
     return 0
