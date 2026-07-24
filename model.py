@@ -9,14 +9,19 @@ import time
 from mean_general import Node
 from mean_general import Phi
 
+'''
+    Eventually to try:
+        - make a list of first nodes and root nodes
+        - probably faster iteration
+'''
+
 class Model:
 
-    def __init__(self, root, n):
+    def __init__(self, root):
         self.root = Node(root)
         self.nodes = {}
         self.nodes[self.root.get_gram()] = self.root
 
-        self.n = n
         self.roots = set()
         self.roots.add(self.root)
 
@@ -64,7 +69,7 @@ class Model:
 
         # step 2: last level posterior
         # just for checking if it works
-        print("n = "+str(self.n))
+        # print("n = "+str(self.n))
         start_time = time.perf_counter()
         
         self.gibbs()

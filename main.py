@@ -14,16 +14,15 @@ from model import Model
 
 
 def test_build(gram, n):
-    model = Model(gram, n)
+    model = Model(gram)
     model.inference()
     print_nodes(model)
     return model
 
 def build(gram):
-    n = 10
-    model = Model(gram, n)
-    ch = string.printable
-    # ch = string.ascii_uppercase
+    model = Model(gram)
+    # ch = string.printable
+    ch = string.ascii_uppercase
     print("Number of characters added: " + str(len(ch)))
     # for l in list(ch):
     #     model.add_gram(gram[:-1] + l)

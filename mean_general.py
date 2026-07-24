@@ -29,7 +29,7 @@ class Node:
     ]).reshape(3,1)
     mu_delta = np.random.multivariate_normal(eta_delta, sig_delta).reshape(1, 1)
 
-    n = 500
+    M = [500, 100, 10, 2, 0]
     
     def __init__(self, gram):
         self.gram = gram
@@ -69,6 +69,7 @@ class Node:
 
         # data
         self.y = None
+        self.m = Node.M[random.randint(0, 4)]
 
     def check_post_mean(self, phi_collection):
         for c in self.get_children():
@@ -178,11 +179,11 @@ class Node:
         self.has_run = True
         self.has_run_prior = False
 
-    def data(self, n):
+    def data(self):
         self.y = np.random.multivariate_normal(
             self.get_true_mean().flatten(),
             self.get_true_var(),
-            size=n
+            size=self.m
         )
             
 
@@ -338,7 +339,7 @@ class Node:
         #     self.prior_var_mod_left = phi_left @ self.prior_var_inv
 
         if self.has_no_children():
-            self.data(Node.n)
+            self.data()
             
             
         
@@ -433,6 +434,9 @@ class Node:
     
     def get_has_run_prior(self):
         return self.has_run_prior
+
+    def get_m(self):
+        return self.m
     
     def __str__(self):
         return self.gram
