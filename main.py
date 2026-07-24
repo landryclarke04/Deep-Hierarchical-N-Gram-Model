@@ -7,6 +7,7 @@ import random
 import string
 
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 from mean_general import Node
 from model import Model
@@ -24,58 +25,16 @@ def build(gram):
     ch = string.printable
     # ch = string.ascii_uppercase
     print("Number of characters added: " + str(len(ch)))
-    # for l in list(ch):
-    #     model.add_gram(gram[:-1] + l)
-    #     model.add_gram(l + gram[:-1])
-    #     model.add_gram(gram[1:] + l)
-        # model.add_gram(l + gram[1:])
-    # print(model.nodes["ITH"].y)
+    for l in list(ch):
+        model.add_gram(gram[:-1] + l)
+        model.add_gram(l + gram[:-1])
+        model.add_gram(gram[1:] + l)
+        model.add_gram(l + gram[1:])
+    # # print(model.nodes["ITH"].y)
     model.inference()
-    # for g in model.nodes:
-    #     node = model.nodes[g]
-    #     # print("clear")
-    #     if node.y is not None:
-    #         print(g)
-    # model.add_gram("THB")
-    # model.add_gram("THA")
-    # model.add_gram("THC")
-    # model.add_gram("THD")
-    # model.add_gram("THF")
-    # model.add_gram("THG")
-    # model.add_gram("THH")
-    # model.add_gram("THJ")
-    # model.add_gram("THL")
-    # model.add_gram("THM")
     model.nodes["TH"].print_results()
     model.nodes["HE"].print_results()
-
-    # for gram in model.nodes:
-    #     check_node(model.nodes[gram])
-    # traverse(model.root)
     return model
-
-def traverse(node, visited=None):
-    if visited is None:
-        visited = set()
-
-    if node in visited:
-        return
-    
-    visited.add(node)
-
-    # tests for build
-    check_node(node)
-
-    # tests for true mean
-    # check_true_mean(node)
-    
-    # tests for prior mean
-    # check_prior_mean(node)
-
-    # dont call for top level
-    if len(node.gram) != 1:
-        traverse(node.right_par)
-        traverse(node.left_par)
 
 def check_true_mean(node):
     # test 1 is mean the correct size
@@ -104,95 +63,6 @@ def print_nodes(model):
     for gram in model.nodes:
         model.nodes[gram].print_results()
 
-def make_plot_prior(model):
-    prior_means = []
-    prior_stds = []
-    true_means = []
-    # starting with 5
-    grams = ["T", "TH", "HE", "H", "E"]
-    for g in grams:
-        
-        node = model.nodes[g]
-        i = random.randint(0, node.p-1)
-        prior_means.append(node.mean_copies[0].flatten()[i])
-        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        prior_std = np.sqrt((node.prior_var[i][i]))
-        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
-        # print(np.sqrt(np.diag(node.prior_var)))
-        prior_stds.append(prior_std)
-        true_means.append(node.get_true_mean().flatten()[i])
-    # x = np.arange(1, 11)  # positions 1 through 10
-    # x = np.arange(1,6)  # positions 1 through 5
-    x = grams
-    plt.errorbar(
-        x,
-        prior_means,
-        # yerr=2*prior_stds,
-        yerr=prior_stds,
-        fmt='o',
-        label='Prior Mean'
-    )
-
-    plt.scatter(
-        x,
-        true_means,
-        color='red',
-        marker='*',
-        s=150,
-        label='True Mean'
-    )
-    plt.xlabel('Case')
-    plt.ylabel('Mean')
-    plt.legend()
-    plt.show()
-    # labels = grams
-    # #plt.xticks(x, labels)
-    # fig, ax = plt.subplots()
-    # ax.set_xticks(x)
-    # ax.set_xticklabels(labels)
-
-def make_plot_post(model):
-    post_means = []
-    post_stds = []
-    true_means = []
-    # starting with 5
-    grams = ["T", "TH", "HE", "H", "E"]
-    for g in grams:
-        
-        node = model.nodes[g]
-        i = random.randint(0, node.p-1)
-        post_means.append(node.get_est_mean().flatten()[i])
-        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        post_std = np.sqrt((node.post_var[i][i]))
-        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
-        # print(np.sqrt(np.diag(node.prior_var)))
-        post_stds.append(post_std)
-        true_means.append(node.get_true_mean().flatten()[i])
-    # x = np.arange(1, 11)  # positions 1 through 10
-    # x = np.arange(1,6)  # positions 1 through 5
-    x = grams
-    plt.errorbar(
-        x,
-        post_means,
-        # yerr=2*prior_stds,
-        yerr=post_stds,
-        fmt='o',
-        label='Post Mean'
-    )
-
-    plt.scatter(
-        x,
-        true_means,
-        color='red',
-        marker='*',
-        s=150,
-        label='True Mean'
-    )
-    plt.xlabel('Case')
-    plt.ylabel('Mean')
-    plt.legend()
-    plt.show()
-
 def make_leanring_plot(model):
     fig, (ax1, ax2) = plt.subplots(
     1, 2,
@@ -205,26 +75,42 @@ def make_leanring_plot(model):
     post_means = []
     post_stds = []
     # starting with 5
-    grams = ["T", "TH", "HE", "H", "E"]
-    x = grams
-    labels = grams
+    grams = ["T", "TH", "HE", "H", "THE", "E"]
+    grams_mod = []
+    x = grams_mod
+    labels = grams_mod
     for g in grams:
         
         node = model.nodes[g]
-        i = random.randint(0, node.p-1)
-        prior_means.append(node.mean_copies[0].flatten()[i])
+        # i = random.randint(0, node.p-1)
+        i = 0
+        g += "[" + str(i) + "]"
+        grams_mod.append(g)
+        mean = node.get_prior_mean().flatten()[i]
+        prior_means.append(mean)
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        prior_std = np.sqrt((node.prior_var[i][i]))
+        # prior_std = np.sqrt((node.prior_var[i][i]))
+        prior_std = abs((0.5+mean) - (mean-0.5))/4
         # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
         # print(np.sqrt(np.diag(node.prior_var)))
-        prior_stds.append(prior_std)
+        prior_stds.append(2*prior_std)
         true_means.append(node.get_true_mean().flatten()[i])
         post_means.append(node.get_est_mean().flatten()[i])
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        post_std = np.sqrt((node.post_var[i][i]))
+        # post_std = np.sqrt((node.post_var[i][i]))
+        post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
         # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
         # print(np.sqrt(np.diag(node.prior_var)))
-        post_stds.append(post_std)
+        post_stds.append(2*post_std)
+
+    sort_idx = np.argsort(true_means)[::-1] 
+    true_means      = np.array(true_means)[sort_idx]
+    prior_means     = np.array(prior_means)[sort_idx]
+    prior_stds      = np.array(prior_stds)[sort_idx]
+    post_means = np.array(post_means)[sort_idx]
+    post_stds  = np.array(post_stds)[sort_idx]
+
+    labels = np.array(labels)[sort_idx]
 
     # Prior
     ax1.errorbar(
@@ -267,13 +153,131 @@ def make_leanring_plot(model):
         s=120,
         label='Truth'
     )
+    handles, labels = ax1.get_legend_handles_labels()
+
+    # extra = Line2D(
+    #     [0], [0],
+    #     color='none',
+    #     label='Dimension=[i]'
+    # )
+
 
     ax2.set_title('Posterior')
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(labels, rotation=45)
+    # ax2.set_xticks(x)
+    # ax2.set_xticklabels(labels, rotation=45)
 
     plt.tight_layout()
     plt.legend()
+    # ax1.legend()
+    fig.suptitle(
+    f"Prior and Posterior Comparison (mean component [index])"
+    )
+    ax1.set_visible(False)
+    plt.show()
+
+def make_one_learning_plot(model):
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    prior_means = []
+    prior_stds = []
+    true_means = []
+    post_means = []
+    post_stds = []
+    # starting with 5
+    grams = ["T", "TH", "HE", "H", "THE", "E"]
+    grams_mod = []
+    x = grams_mod
+    
+    labels = grams_mod
+    for g in grams:
+        
+        node = model.nodes[g]
+        # i = random.randint(0, node.p-1)
+        i = 0
+        g += "[" + str(i) + "]"
+        grams_mod.append(g)
+        mean = node.get_prior_mean().flatten()[i]
+        prior_means.append(mean)
+        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
+        # prior_std = np.sqrt((node.prior_var[i][i]))
+        prior_std = abs((0.5+mean) - (mean-0.5))/4
+        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
+        # print(np.sqrt(np.diag(node.prior_var)))
+        prior_stds.append(2*prior_std)
+        true_means.append(node.get_true_mean().flatten()[i])
+        post_means.append(node.get_est_mean().flatten()[i])
+        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
+        # post_std = np.sqrt((node.post_var[i][i]))
+        post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
+        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
+        # print(np.sqrt(np.diag(node.prior_var)))
+        post_stds.append(2*post_std)
+
+    sort_idx = np.argsort(true_means)[::-1] 
+    true_means      = np.array(true_means)[sort_idx]
+    prior_means     = np.array(prior_means)[sort_idx]
+    prior_stds      = np.array(prior_stds)[sort_idx]
+    post_means = np.array(post_means)[sort_idx]
+    post_stds  = np.array(post_stds)[sort_idx]
+
+    labels = np.array(labels)[sort_idx]
+    x = np.arange(len(labels))
+    offset = 0.15
+
+    ax.errorbar(
+        x - offset,
+        prior_means,
+        yerr=2*prior_stds,
+        fmt='o',
+        capsize=4,
+        label='Prior'
+    )
+
+    ax.errorbar(
+        x + offset,
+        post_means,
+        yerr=2*post_stds,
+        fmt='s',
+        capsize=4,
+        label='Posterior'
+    )
+
+    # # Prior
+    # ax.errorbar(
+    #     x,
+    #     prior_means,
+    #     yerr=2*prior_stds,
+    #     fmt='o',
+    #     capsize=4,
+    #     label='Prior Mean ± 2σ'
+    # )
+
+    # # Posterior
+    # ax.errorbar(
+    #     x,
+    #     post_means,
+    #     yerr=2*post_stds,
+    #     fmt='s',
+    #     capsize=4,
+    #     label='Posterior Mean ± 2σ'
+    # )
+
+    # Truth
+    ax.scatter(
+        x,
+        true_means,
+        marker='*',
+        color = "red",
+        s=150,
+        label='True Mean',
+        zorder=5
+    )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45)
+    ax.legend()
+
+    plt.tight_layout()
     plt.show()
 
 def main():
@@ -285,7 +289,8 @@ def main():
     model = build(gram_3)
     # make_plot_prior(model)
     # make_plot_post(model)
-    make_leanring_plot(model)
+    # make_leanring_plot(model)
+    make_one_learning_plot(model)
     # for c in model_3.nodes["TH"].right_children:
     #     print(c.gram)
     # print(model_3.nodes["HE"].left_children.gram)
