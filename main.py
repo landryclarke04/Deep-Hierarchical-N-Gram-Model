@@ -24,11 +24,11 @@ def build(gram):
     # ch = string.printable
     ch = string.ascii_uppercase
     print("Number of characters added: " + str(len(ch)))
-    # for l in list(ch):
-    #     model.add_gram(gram[:-1] + l)
-    #     model.add_gram(l + gram[:-1])
-    #     model.add_gram(gram[1:] + l)
-    #     model.add_gram(l + gram[1:])
+    for l in list(ch):
+        model.add_gram(gram[:-1] + l)
+        model.add_gram(l + gram[:-1])
+        model.add_gram(gram[1:] + l)
+        model.add_gram(l + gram[1:])
     # # print(model.nodes["ITH"].y)
     model.inference()
     model.nodes["TH"].print_results()
@@ -246,26 +246,6 @@ def make_one_learning_plot(model):
         label='Posterior'
     )
 
-    # # Prior
-    # ax.errorbar(
-    #     x,
-    #     prior_means,
-    #     yerr=2*prior_stds,
-    #     fmt='o',
-    #     capsize=4,
-    #     label='Prior Mean ± 2σ'
-    # )
-
-    # # Posterior
-    # ax.errorbar(
-    #     x,
-    #     post_means,
-    #     yerr=2*post_stds,
-    #     fmt='s',
-    #     capsize=4,
-    #     label='Posterior Mean ± 2σ'
-    # )
-
     # Truth
     ax.scatter(
         x,
@@ -284,6 +264,114 @@ def make_one_learning_plot(model):
     plt.tight_layout()
     plt.show()
 
+def make_M_plot(model):
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    prior_means = []
+    prior_stds = []
+    true_means = []
+    post_means = []
+    post_stds = []
+    m_values = []
+    # starting with 5
+    grams = ["HER", "THL", "HEM", "THW", "THE"]
+    grams_mod = []
+    x = grams_mod
+    
+    labels = grams_mod
+    for g in grams:
+        
+        node = model.nodes[g]
+        # i = random.randint(0, node.p-1)
+        i = 0
+        g += "[" + str(i) + "]"
+        grams_mod.append(g)
+        mean = node.get_prior_mean().flatten()[i]
+        prior_means.append(mean)
+        true_mean = node.get_true_mean().flatten()[i]
+        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
+        # prior_std = np.sqrt((node.prior_var[i][i]))
+        prior_std = abs(mean-true_mean)/2
+        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
+        # prior_std = np.sqrt((node.prior_var[i][i]))
+        # prior_std = abs((0.5+mean) - (mean-0.5))/4
+        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
+        # print(np.sqrt(np.diag(node.prior_var)))
+        prior_stds.append(2*prior_std)
+        true_means.append(node.get_true_mean().flatten()[i])
+        post_means.append(node.get_est_mean().flatten()[i])
+        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
+        # post_std = np.sqrt((node.post_var[i][i]))
+        post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
+        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
+        # print(np.sqrt(np.diag(node.prior_var)))
+        post_stds.append(2*post_std)
+        m_values.append(node.get_m())
+
+    m_colors = {
+        0: 'tab:pink',
+        2: (220/255, 206/255, 7/255), # golden yellow
+        10: 'tab:green',
+        100: (17/255, 48/255, 135/255), # dark blue
+        500: 'tab:purple'
+    }
+
+    sort_idx = np.argsort(true_means)[::-1] 
+    true_means      = np.array(true_means)[sort_idx]
+    prior_means     = np.array(prior_means)[sort_idx]
+    prior_stds      = np.array(prior_stds)[sort_idx]
+    post_means = np.array(post_means)[sort_idx]
+    post_stds  = np.array(post_stds)[sort_idx]
+
+    labels = np.array(labels)[sort_idx]
+    x = np.arange(len(labels))
+    offset = 0.15
+
+    ax.errorbar(
+        x - offset,
+        prior_means,
+        yerr=2*prior_stds,
+        fmt='o',
+        capsize=4,
+        label='Prior'
+    )
+
+    ax.errorbar(
+        x + offset,
+        post_means,
+        yerr=2*post_stds,
+        fmt='s',
+        capsize=4,
+        label='Posterior'
+    )
+
+    # Truth
+    ax.scatter(
+        x,
+        true_means,
+        marker='*',
+        color = "red",
+        s=150,
+        label='True Mean',
+        zorder=5
+    )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45)
+    for tick, m in zip(ax.get_xticklabels(), m_values):
+        tick.set_color(m_colors[m])
+    legend_handles = [
+        Line2D([0], [0], color=color, lw=4, label=f'm = {m}')
+        for m, color in m_colors.items()
+    ]
+
+    ax.legend(handles=ax.get_legend_handles_labels()[0] + legend_handles)
+    # ax.legend()
+
+    plt.tight_layout()
+    plt.show()
+    return
+
 def main():
     # gram_3 = "THE"
     # gram_3 = "EXODUS"
@@ -294,7 +382,8 @@ def main():
     # make_plot_prior(model)
     # make_plot_post(model)
     # make_leanring_plot(model)
-    make_one_learning_plot(model)
+    # make_one_learning_plot(model)
+    make_M_plot(model)
     # for c in model_3.nodes["TH"].right_children:
     #     print(c.gram)
     # print(model_3.nodes["HE"].left_children.gram)

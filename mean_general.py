@@ -70,7 +70,7 @@ class Node:
         # data
         self.y = None
         self.m = Node.M[random.randint(0, 4)]
-
+        
     def check_post_mean(self, phi_collection):
         for c in self.get_children():
             if not c.get_has_run():
@@ -190,6 +190,14 @@ class Node:
     def posterior_data(self):
         # if we have already calculated posterior, just need to sample again
         if len(self.mean_copies) > 2:
+            self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
+            self.mean_copies.append(self.est_mean.copy())
+            self.has_run = True
+            self.has_run_prior = False
+            return
+        if self.m==0:
+            self.post_mean = self.prior_mean
+            self.post_var = self.prior_var
             self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
             self.mean_copies.append(self.est_mean.copy())
             self.has_run = True
