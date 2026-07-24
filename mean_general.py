@@ -341,13 +341,6 @@ class Node:
             # self.true_mean = eta.reshape(self.p, 1)
             self.true_mean = self.sample_MVN(eta, self.true_var)
 
-        # if len(phi_collection) != len(self.gram):
-        #     phi = phi_collection[len(self.gram)-1]
-        #     phi_left = phi.phi_left()
-        #     phi_right = phi.phi_right()
-        #     self.prior_var_mod_right = phi_right @ self.prior_var_inv
-        #     self.prior_var_mod_left = phi_left @ self.prior_var_inv
-
         if self.has_no_children():
             if self.gram == "THE":
                 self.m = 500
@@ -418,6 +411,9 @@ class Node:
     # returns ALL the children
     def get_children(self):
         return self.left_children | self.right_children
+
+    def get_number_of_children(self):
+        return len(self.left_children) + len(self.right_children)
     
     def has_no_children(self):
         return len(self.left_children) == 0 and len(self.right_children) == 0

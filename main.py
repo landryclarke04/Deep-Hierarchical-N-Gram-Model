@@ -34,8 +34,8 @@ def build(gram):
         model.add_gram(l + gram[1:])
     # # print(model.nodes["ITH"].y)
     model.inference()
-    model.nodes["TH"].print_results()
-    model.nodes["HE"].print_results()
+    # model.nodes["TH"].print_results()
+    # model.nodes["HE"].print_results()
 
     combinations = [''.join(item) for item in product(ch, repeat=3)]
     return model
@@ -198,12 +198,14 @@ def make_one_learning_plot(model):
         grams.append(no_tri_grams[unique_numbers[i]])
     
     grams_mod = []
+    num_children = []
     x = grams_mod
     
     labels = grams_mod
     for g in grams:
         
         node = model.nodes[g]
+        num_children.append(node.get_number_of_children())
         i = random.randint(0, node.p-1)
         # i = 0
         g += "[" + str(i) + "]"
@@ -237,6 +239,8 @@ def make_one_learning_plot(model):
     prior_stds      = np.array(prior_stds)[sort_idx]
     post_means = np.array(post_means)[sort_idx]
     post_stds  = np.array(post_stds)[sort_idx]
+    num_children = np.array(num_children)[sort_idx]
+    grams = np.array(grams)[sort_idx]
 
     labels = np.array(labels)[sort_idx]
     x = np.arange(len(labels))
@@ -282,23 +286,29 @@ def make_one_learning_plot(model):
         "[i] correspond to component of mean chosen starting at 0",
         fontsize=10
     )
+
     table_data = [
-        ['Blue',   'm = 10'],
-        ['Orange', 'm = 50'],
-        ['Green',  'm = 100'],
-        ['Red',    'm = 500'],
-        ['Purple', 'm = 1000']
+        # ['Blue',   'm = 10'],
+        # ['Orange', 'm = 50'],
+        # ['Green',  'm = 100'],
+        # ['Red',    'm = 500'],
+        # ['Purple', 'm = 1000']
     ]
+
+    for i in range(len(grams)):
+        row = [grams[i], str(num_children[i])]
+        table_data.append(row)
 
     table = plt.table(
         cellText=table_data,
-        colLabels=['Color', 'Sample Size'],
+        colLabels=['Gram', 'Number of Children'],
         loc='center left',
         bbox=[1.05, 0.25, 0.3, 0.5],
         cellLoc='center'
     )
+    table.set_fontsize(12)
 
-    table.scale(1, 1.5)
+    table.scale(1.2, 1.7)
 
     plt.tight_layout()
     plt.show()
