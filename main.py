@@ -25,11 +25,11 @@ def build(gram):
     ch = string.printable
     # ch = string.ascii_uppercase
     print("Number of characters added: " + str(len(ch)))
-    for l in list(ch):
-        model.add_gram(gram[:-1] + l)
-        model.add_gram(l + gram[:-1])
-        model.add_gram(gram[1:] + l)
-        model.add_gram(l + gram[1:])
+    # for l in list(ch):
+    #     model.add_gram(gram[:-1] + l)
+    #     model.add_gram(l + gram[:-1])
+    #     model.add_gram(gram[1:] + l)
+    #     model.add_gram(l + gram[1:])
     # # print(model.nodes["ITH"].y)
     model.inference()
     model.nodes["TH"].print_results()
@@ -88,13 +88,14 @@ def make_leanring_plot(model):
         grams_mod.append(g)
         mean = node.get_prior_mean().flatten()[i]
         prior_means.append(mean)
+        true_mean = node.get_true_mean().flatten()[i]
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # prior_std = np.sqrt((node.prior_var[i][i]))
-        prior_std = abs((0.5+mean) - (mean-0.5))/4
+        prior_std = abs(mean-true_mean)/2
         # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
         # print(np.sqrt(np.diag(node.prior_var)))
         prior_stds.append(2*prior_std)
-        true_means.append(node.get_true_mean().flatten()[i])
+        true_means.append(true_mean)
         post_means.append(node.get_est_mean().flatten()[i])
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # post_std = np.sqrt((node.post_var[i][i]))
@@ -198,9 +199,13 @@ def make_one_learning_plot(model):
         grams_mod.append(g)
         mean = node.get_prior_mean().flatten()[i]
         prior_means.append(mean)
+        true_mean = node.get_true_mean().flatten()[i]
         #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
         # prior_std = np.sqrt((node.prior_var[i][i]))
-        prior_std = abs((0.5+mean) - (mean-0.5))/4
+        prior_std = abs(mean-true_mean)/2
+        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
+        # prior_std = np.sqrt((node.prior_var[i][i]))
+        # prior_std = abs((0.5+mean) - (mean-0.5))/4
         # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
         # print(np.sqrt(np.diag(node.prior_var)))
         prior_stds.append(2*prior_std)
