@@ -29,8 +29,7 @@ class Node:
     ]).reshape(3,1)
     mu_delta = np.random.multivariate_normal(eta_delta, sig_delta).reshape(1, 1)
 
-    # M = [500, 100, 10, 2, 0]
-    M = [500, 500]
+    M = [500, 100, 10, 2, 0]
 
     m = 0
     
@@ -108,7 +107,6 @@ class Node:
         for c in self.get_left_children():
             # variance
             child_V = c.get_prior_var_mod_right()
-            child_m = c.get_m()
             # post_V += phi_right.T @ child_V @ phi_right
 
             # eta
@@ -116,19 +114,18 @@ class Node:
             child_mean = c.get_est_mean()
             # post_eta += child_V @ (child_mean - 
             #                                     phi_left @ sib_mean)
-            post_eta += child_m * child_V @ (child_mean - 
+            post_eta += child_V @ (child_mean - 
                                                 phi_left @ sib_mean)
             
         for c in self.get_right_children():
             # variance
             child_V = c.get_prior_var_mod_left()
-            child_m = c.get_m()
             # post_V += phi_left.T @ child_V @ phi_left
 
             # eta
             sib_mean = c.right_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta += child_m * child_V @ (child_mean - 
+            post_eta += child_V @ (child_mean - 
                                                 phi_right @ sib_mean)
 
         
@@ -157,26 +154,24 @@ class Node:
         for c in self.get_left_children():
             # variance
             child_V = c.get_prior_var_mod_right()
-            child_m = c.get_m()
-            post_V += child_m * child_V @ phi_right
+            post_V += child_V @ phi_right
             
 
             # eta
             sib_mean = c.left_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta += child_m * child_V @ (child_mean - 
+            post_eta += child_V @ (child_mean - 
                                                 phi_left @ sib_mean)
             
         for c in self.get_right_children():
             # variance
             child_V = c.get_prior_var_mod_left()
-            child_m = c.get_m()
-            post_V += child_m * child_V @ phi_left
+            post_V +=  child_V @ phi_left
 
             # eta
             sib_mean = c.right_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta += child_m * child_V @ (child_mean - 
+            post_eta +=  child_V @ (child_mean - 
                                                 phi_right @ sib_mean)
 
         

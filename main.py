@@ -379,7 +379,7 @@ def make_M_plot(model):
     }
 
     # sort_idx = np.argsort(true_means)[::-1] 
-    sort_idx = np.argsort(m_values)[::-1] 
+    sort_idx = np.argsort(m_values)
     m_values        = np.array(m_values)[sort_idx]
     true_means      = np.array(true_means)[sort_idx]
     prior_means     = np.array(prior_means)[sort_idx]
@@ -575,8 +575,8 @@ def main():
     #     model.nodes[g].print_results()
 
     
-    make_one_learning_plot(model)
-    # make_M_plot(model)
+    # make_one_learning_plot(model)
+    make_M_plot(model)
     # make_predictive_plot(model)
 
 
