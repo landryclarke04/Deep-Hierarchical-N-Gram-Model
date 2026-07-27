@@ -450,6 +450,98 @@ def make_M_plot(model):
     plt.show()
     return
 
+def make_m_plot_no_initial(model):
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    true_means = []
+    post_means = []
+    post_stds = []
+    m_values = []
+    all_grams = model.nodes.keys()
+    # getting only tri-grams
+    tri_grams = [g for g in all_grams if len(g) == 3]
+    grams = []
+    for m in Node.M:
+        grams += M_helper(tri_grams, m, model)
+    grams_mod = []
+    x = grams_mod
+    labels = grams_mod
+    for g in grams:
+        node = model.nodes[g]
+        i = random.randint(0, node.p-1)
+        g += "[" + str(i) + "]"
+        grams_mod.append(g)
+        post_std = abs(np.quantile(np.array(node.mean_copies), [0.975])[0])
+        true_means.append(node.get_true_mean().flatten()[i])
+        post_means.append(node.get_est_mean().flatten()[i])
+        post_stds.append(post_std)
+        m_values.append(node.get_m())
+
+    m_colors = {
+        0: (2/255, 8/255, 106/255),
+        2: (144/255, 41/255, 43/255),
+        10: (208/255, 44/255, 129/255),
+        100: (0/255, 159/255, 136/255), 
+        500: (91/255, 47/255, 110/255)
+    }
+
+    # sort_idx = np.argsort(true_means)[::-1] 
+    sort_idx = np.argsort(m_values)
+    m_values        = np.array(m_values)[sort_idx]
+    true_means      = np.array(true_means)[sort_idx]
+    post_means = np.array(post_means)[sort_idx]
+    post_stds  = np.array(post_stds)[sort_idx]
+
+    labels = np.array(labels)[sort_idx]
+    x = np.arange(len(labels))
+
+    ax.errorbar(
+        x,
+        post_means,
+        yerr=post_stds,
+        fmt='s',
+        capsize=4,
+        label='Posterior Mean ±2σ'
+    )
+
+    # Truth
+    ax.scatter(
+        x,
+        true_means,
+        marker='*',
+        color = "red",
+        s=150,
+        label='True Mean',
+        zorder=5
+    )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45)
+    for tick, m in zip(ax.get_xticklabels(), m_values):
+        tick.set_color(m_colors[m])
+    legend_handles = [
+        Line2D([0], [0], color=color, lw=4, label=f'm = {m}')
+        for m, color in m_colors.items()
+    ]
+
+    ax.legend(handles=ax.get_legend_handles_labels()[0] + legend_handles,
+                loc='center left',
+                bbox_to_anchor=(1.02, 0.5)
+    )
+
+    ax.set_xlabel("Tri-gram where [i] denotes the index of a randomly chosen component of the mean vector, starting at 0")
+    ax.set_ylabel("Mean Value")
+    ax.set_title(
+        "Learning Phase for Tri-grams Where Sample Size, m, Varies",
+        fontsize=10
+    )
+   
+
+    plt.tight_layout()
+    plt.show()
+    return
+
+
 def M_helper(tri_grams, m, model):
     m_gram = []
     i = 0
@@ -467,32 +559,57 @@ def M_helper(tri_grams, m, model):
 
 def make_predictive_plot(model):
     fig, ax = plt.subplots(figsize=(10, 6))
-    grams = ["T", "H", "E", "TH", "HE", "THE"]
+
+    tri_grams = [g for g in model.nodes.keys() if len(g) == 3]
+    grams = []
+    for m in Node.M:
+        grams += M_helper(tri_grams, m, model)
     stds = []
     mod_grams = []
     true_means = []
+    m_values = []
     
     col_y = []
     for g in grams:
+        node = model.nodes[g]
+        i = random.randint(0, node.p-1)
         
-        for i in range(0, len(g)*2-1, 2):
-            new_y = []
-            mod_grams.append(g + "[" + str(i) + "]")
-            
-            
-            node = model.nodes[g]
-            true_means.append(node.get_true_mean().flatten()[i])
-            for mu in node.mean_copies:
-                y = node.sample_MVN(mu, node.true_var)
-                new_y.append(y.flatten().copy()[i])
-            std = abs(np.quantile(np.array(new_y), [0.975])[0])
-            # print(std)
-            # stds.append(2*np.std(np.array(new_y), axis=0)[i])
-            stds.append(std)
-            mean_pred = np.array(new_y).mean(axis=0)
-            col_y.append(mean_pred)
+       
+        new_y = []
+        m_values.append(node.get_m())
+        mod_grams.append(g + "[" + str(i) + "]")
+        
+        
+        
+        true_means.append(node.get_true_mean().flatten()[i])
+        burn = int(len(node.mean_copies)*.1)
+        for mu in node.mean_copies[burn:]:
+            y = node.sample_MVN(mu, node.true_var)
+            new_y.append(y.flatten().copy()[i])
+        std = abs(np.quantile(np.array(new_y), [0.975])[0])
+        # print(std)
+        # stds.append(2*np.std(np.array(new_y), axis=0)[i])
+        stds.append(std)
+        mean_pred = np.array(new_y).mean(axis=0)
+        col_y.append(mean_pred)
 
+    m_colors = {
+        0: (2/255, 8/255, 106/255),
+        2: (144/255, 41/255, 43/255),
+        10: (208/255, 44/255, 129/255),
+        100: (0/255, 159/255, 136/255), 
+        500: (91/255, 47/255, 110/255)
+    }
     labels = mod_grams
+
+    # sort_idx = np.argsort(true_means)[::-1] 
+    sort_idx = np.argsort(m_values)
+    m_values        = np.array(m_values)[sort_idx]
+    true_means      = np.array(true_means)[sort_idx]
+    col_y = np.array(col_y)[sort_idx]
+    stds  = np.array(stds)[sort_idx]
+
+    labels = np.array(labels)[sort_idx]
     x = np.arange(len(labels))
 
     ax.errorbar(
@@ -518,32 +635,192 @@ def make_predictive_plot(model):
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=45)
-    # ax.legend(
-    #     loc='center left',
-    #     bbox_to_anchor=(1.02, 0.5)
-    # )
+    for tick, m in zip(ax.get_xticklabels(), m_values):
+        tick.set_color(m_colors[m])
+    legend_handles = [
+        Line2D([0], [0], color=color, lw=4, label=f'm = {m}')
+        for m, color in m_colors.items()
+    ]
 
-    ax.legend()
+    ax.legend(handles=ax.get_legend_handles_labels()[0] + legend_handles,
+                loc='center left',
+                bbox_to_anchor=(1.02, 0.5)
+    )
+
     ax.set_title(
-        "Predictive Posterior Mean Compared to True Mean Focused on \"THE\":\n"
+        "Predictive Posterior Mean Compared to True Mean"
         "Taken after adding all possible uppercase tri-grams (total of 104) containing \"TH\" and \"HE\"",
         fontsize=10
     )
-    # fig.text(
-    #     0.85, 0.5,
-    #     "Notes:\n"
-    #     "• Colored x-axis labels indicate sample size m.\n"
-    #     "• Values correspond to component i=2 of each mean vector.\n"
-    #     "• Error bars represent ±2 standard deviations.",
-    #     fontsize=9,
-    #     va='center'
-    # )
+  
     ax.set_xlabel("Possible n-grams made from tri-gram \"THE\"")
     ax.set_ylabel("Mean Value")
+   
 
     plt.tight_layout()
     plt.show()
     return
+
+def make_M_and_predictive(model):
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    true_means = []
+    post_means = []
+    post_stds = []
+    m_values = []
+    all_grams = model.nodes.keys()
+    # getting only tri-grams
+    tri_grams = [g for g in all_grams if len(g) == 3]
+    grams = []
+    for m in Node.M:
+        grams += M_helper(tri_grams, m, model)
+    grams_mod = []
+    x = grams_mod
+    labels = grams_mod
+    col_y = []
+    stds = []
+    for g in grams:
+        node = model.nodes[g]
+        i = random.randint(0, node.p-1)
+        g += "[" + str(i) + "]"
+        grams_mod.append(g)
+        post_std = abs(np.quantile(np.array(node.mean_copies), [0.975])[0])
+        true_means.append(node.get_true_mean().flatten()[i])
+        post_means.append(node.get_est_mean().flatten()[i])
+        post_stds.append(post_std)
+        m_values.append(node.get_m())
+
+        new_y = []
+        burn = int(len(node.mean_copies)*.1)
+        for mu in node.mean_copies[burn:]:
+            y = node.sample_MVN(mu, node.true_var)
+            new_y.append(y.flatten().copy()[i])
+        std = abs(np.quantile(np.array(new_y), [0.975])[0])
+        # print(std)
+        # stds.append(2*np.std(np.array(new_y), axis=0)[i])
+        stds.append(std)
+        mean_pred = np.array(new_y).mean(axis=0)
+        col_y.append(mean_pred)
+
+    m_colors = {
+        0: (2/255, 8/255, 106/255),
+        2: (144/255, 41/255, 43/255),
+        10: (208/255, 44/255, 129/255),
+        100: (0/255, 159/255, 136/255), 
+        500: (91/255, 47/255, 110/255)
+    }
+
+    # sort_idx = np.argsort(true_means)[::-1] 
+    sort_idx = np.argsort(m_values)
+    m_values        = np.array(m_values)[sort_idx]
+    true_means      = np.array(true_means)[sort_idx]
+    post_means = np.array(post_means)[sort_idx]
+    post_stds  = np.array(post_stds)[sort_idx]
+    col_y = np.array(col_y)[sort_idx]
+    stds  = np.array(stds)[sort_idx]
+
+    labels = np.array(labels)[sort_idx]
+    x = np.arange(len(labels))
+
+    ax.errorbar(
+        x,
+        post_means,
+        yerr=post_stds,
+        fmt='s',
+        capsize=4,
+        label='Posterior Mean ±2σ'
+    )
+
+    # Truth
+    ax.scatter(
+        x,
+        true_means,
+        marker='*',
+        color = "red",
+        s=150,
+        label='True Mean',
+        zorder=5
+    )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45)
+    for tick, m in zip(ax.get_xticklabels(), m_values):
+        tick.set_color(m_colors[m])
+    legend_handles = [
+        Line2D([0], [0], color=color, lw=4, label=f'm = {m}')
+        for m, color in m_colors.items()
+    ]
+
+    ax.legend(handles=ax.get_legend_handles_labels()[0] + legend_handles,
+                loc='center left',
+                bbox_to_anchor=(1.02, 0.5)
+    )
+
+    ax.set_xlabel("Tri-gram where [i] denotes the index of a randomly chosen component of the mean vector, starting at 0")
+    ax.set_ylabel("Mean Value")
+    ax.set_title(
+        "Learning Phase for Tri-grams Where Sample Size, m, Varies",
+        fontsize=10
+    )
+   
+
+    plt.tight_layout()
+    plt.show()
+
+    # predictive plot
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    x = np.arange(len(labels))
+
+    ax.errorbar(
+        x,
+        col_y,
+        yerr=stds,
+        color = (91/255, 47/255, 110/255),
+        fmt='o',
+        capsize=4,
+        label='Preditive Posterior Mean ±2σ'
+    )
+
+    # Truth
+    ax.scatter(
+        x,
+        true_means,
+        marker='*',
+        color = "red",
+        s=150,
+        label='True Mean',
+        zorder=5
+    )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45)
+    for tick, m in zip(ax.get_xticklabels(), m_values):
+        tick.set_color(m_colors[m])
+    legend_handles = [
+        Line2D([0], [0], color=color, lw=4, label=f'm = {m}')
+        for m, color in m_colors.items()
+    ]
+
+    ax.legend(handles=ax.get_legend_handles_labels()[0] + legend_handles,
+                loc='center left',
+                bbox_to_anchor=(1.02, 0.5)
+    )
+
+    ax.set_title(
+        "Predictive Posterior Mean Compared to True Mean"
+        "Taken after adding all possible uppercase tri-grams (total of 104) containing \"TH\" and \"HE\"",
+        fontsize=10
+    )
+  
+    ax.set_xlabel("Possible n-grams made from tri-gram \"THE\"")
+    ax.set_ylabel("Mean Value")
+   
+
+    plt.tight_layout()
+    plt.show()
+
 
 def get_same_list(all_grams):
     grams = []
@@ -576,8 +853,11 @@ def main():
 
     
     # make_one_learning_plot(model)
-    make_M_plot(model)
+    # make_M_plot(model)
+    # make_m_plot_no_initial(model)
     # make_predictive_plot(model)
+
+    make_M_and_predictive(model)
 
 
     # build_full()
