@@ -29,7 +29,8 @@ class Node:
     ]).reshape(3,1)
     mu_delta = np.random.multivariate_normal(eta_delta, sig_delta).reshape(1, 1)
 
-    M = [500, 100, 10, 2, 0]
+    # M = [500, 100, 10, 2, 0]
+    M = [500, 500]
 
     m = 0
     
@@ -43,7 +44,10 @@ class Node:
         # set of relatives
         self.left_children = set()
         self.right_children = set()
+        self.children = set()
         # figure out phi situation
+
+       
 
         # variance variables
         self.true_var = self.get_IWH_var()
@@ -71,7 +75,7 @@ class Node:
 
         # data
         self.y = None
-        self.m = None
+        self.m = 0
 
     def check_post_mean(self, phi_collection):
         for c in self.get_children():
@@ -104,6 +108,7 @@ class Node:
         for c in self.get_left_children():
             # variance
             child_V = c.get_prior_var_mod_right()
+            child_m = c.get_m()
             # post_V += phi_right.T @ child_V @ phi_right
 
             # eta
@@ -111,18 +116,19 @@ class Node:
             child_mean = c.get_est_mean()
             # post_eta += child_V @ (child_mean - 
             #                                     phi_left @ sib_mean)
-            post_eta += child_V @ (child_mean - 
+            post_eta += child_m * child_V @ (child_mean - 
                                                 phi_left @ sib_mean)
             
         for c in self.get_right_children():
             # variance
             child_V = c.get_prior_var_mod_left()
+            child_m = c.get_m()
             # post_V += phi_left.T @ child_V @ phi_left
 
             # eta
             sib_mean = c.right_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta += child_V @ (child_mean - 
+            post_eta += child_m * child_V @ (child_mean - 
                                                 phi_right @ sib_mean)
 
         
@@ -151,23 +157,26 @@ class Node:
         for c in self.get_left_children():
             # variance
             child_V = c.get_prior_var_mod_right()
-            post_V += child_V @ phi_right
+            child_m = c.get_m()
+            post_V += child_m * child_V @ phi_right
+            
 
             # eta
             sib_mean = c.left_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta += child_V @ (child_mean - 
+            post_eta += child_m * child_V @ (child_mean - 
                                                 phi_left @ sib_mean)
             
         for c in self.get_right_children():
             # variance
             child_V = c.get_prior_var_mod_left()
-            post_V += child_V @ phi_left
+            child_m = c.get_m()
+            post_V += child_m * child_V @ phi_left
 
             # eta
             sib_mean = c.right_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta += child_V @ (child_mean - 
+            post_eta += child_m * child_V @ (child_mean - 
                                                 phi_right @ sib_mean)
 
         
@@ -214,6 +223,7 @@ class Node:
         y_bar = np.mean(self.y, axis=0).reshape(self.p, 1)
         eta = self.prior_mean
         # print(self.gram)
+        # print(eta)
         self.post_mean = self.post_var @ (self.prior_var_inv@eta + n*true_sig @ y_bar)
 
         # self.prior_var = self.post_var.copy()
@@ -308,6 +318,7 @@ class Node:
         # self.prior = self.sample_MVN(eta, self.prior_var)
         # prior should just be eta
         self.prior_mean = eta.reshape(self.p, 1)
+        # print(self.prior_mean)
         # check is est_mean has been set. if not,
         # est_mean = N(self. prior, self.prior_var)
         self.has_run_prior = True
@@ -369,10 +380,12 @@ class Node:
     def add_left(self, ch):
         #ch.set_right_parent(self)
         self.left_children.add(ch)
+        self.children.add(ch)
 
     def add_right(self, ch):
         #ch.set_left_parent(self)
         self.right_children.add(ch)
+        self.children.add(ch)
 
 
     def get_IWH_var(self): # method checked
@@ -410,10 +423,10 @@ class Node:
     
     # returns ALL the children
     def get_children(self):
-        return self.left_children | self.right_children
+        return self.children
 
     def get_number_of_children(self):
-        return len(self.left_children) + len(self.right_children)
+        return len(self.children)
     
     def has_no_children(self):
         return len(self.left_children) == 0 and len(self.right_children) == 0

@@ -36,8 +36,8 @@ def build(gram):
     model.inference()
     # model.nodes["TH"].print_results()
     # model.nodes["HE"].print_results()
-
-    combinations = [''.join(item) for item in product(ch, repeat=3)]
+    # for gram in model.nodes:
+    #     model.nodes[gram].print_results()
     return model
 
 def check_true_mean(node):
@@ -193,7 +193,7 @@ def make_one_learning_plot(model):
     all_grams = model.nodes.keys()
     # getting no tri-grams
     no_tri_grams = [g for g in all_grams if len(g) != 3]
-    unique_numbers = random.sample(range(0, len(no_tri_grams)), 10)
+    unique_numbers = random.sample(range(0, len(no_tri_grams)), 15)
     for i in range(len(unique_numbers)):
         grams.append(no_tri_grams[unique_numbers[i]])
     
@@ -544,23 +544,43 @@ def make_predictive_plot(model):
     plt.tight_layout()
     plt.show()
     return
-    
 
+def get_same_list(all_grams):
+    grams = []
+    no_tri_grams = [g for g in all_grams if len(g) != 3]
+    unique_numbers = random.sample(range(0, len(no_tri_grams)), 10)
+    for i in range(len(unique_numbers)):
+        grams.append(no_tri_grams[unique_numbers[i]])
+    return grams
+
+def build_full():
+    gram = "THE"
+    model = Model(gram)
+    # ch = string.printable
+    ch = string.ascii_uppercase
+    combinations = [''.join(item) for item in product(ch, repeat=3)]
+    combinations = combinations[1000:]
+    print("Number of characters added: " + str(len(combinations)))
+    for c in combinations:
+        model.add_gram(c)
+    # # print(model.nodes["ITH"].y)
+    model.inference()
+    make_one_learning_plot(model)
+    return model
 
 def main():
-    # gram_3 = "THE"
-    # gram_3 = "EXODUS"
     gram_3 = "THE"
-
-    # model_3 = test_build(gram_3, 500)
     model = build(gram_3)
+    # for g in model.nodes:
+    #     model.nodes[g].print_results()
 
-    # make_predictive_plot(model)
-    # make_plot_prior(model)
-    # make_plot_post(model)
-    # make_leanring_plot(model)
+    
     make_one_learning_plot(model)
     # make_M_plot(model)
+    # make_predictive_plot(model)
+
+
+    # build_full()
     
     return 0
 main()

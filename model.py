@@ -26,6 +26,7 @@ class Model:
         self.roots.add(self.root)
 
         self.depth = len(self.root.get_gram())
+        self.level1 = set()
 
         self.build(self.root)
         # create data for lower nodes
@@ -38,7 +39,9 @@ class Model:
     
 
         # change from list to just one object
-        self.level1 = self.nodes[self.root.get_gram()[0]]
+        # self.level1 = self.nodes[self.root.get_gram()[0]]
+        # level variables
+        
         # create true mean
         # self.create_true_mean(self.level1)
         # self.update_prior_mean(self.level1)   
@@ -62,8 +65,8 @@ class Model:
 
     def inference(self):
         self.build_phi()
-        self.create_true_mean(self.level1)
-        self.update_prior_mean(self.level1)   
+        self.create_true_mean()
+        self.update_prior_mean()   
         # step 1: make data
         # self.data(n)
 
@@ -96,11 +99,11 @@ class Model:
             
             # call something that goes down up
             # update our posteriors
-            self.update_posterior_mean(self.root)
+            self.update_posterior_mean()
 
             # call something that goes up down
             # update priors
-            self.update_prior_mean(self.level1)
+            self.update_prior_mean()
 
             #mu = self.sample_MVN(self.post_mean, self.post_var)
 
@@ -118,13 +121,13 @@ class Model:
 
 
 
-    def update_posterior_mean(self, node):
+    def update_posterior_mean(self):
         # need to go up the tree once and call posterior for each node
         # for c in node.get_children():
         #     if not c.get_has_run():
         #         self.update_posterior_mean(c)
-        for gram in self.nodes:
-            self.nodes[gram].posterior_mean(self.phi_collection)
+        for node in self.level1:
+            node.posterior_mean(self.phi_collection)
 
 
         # # node has already been run
@@ -155,6 +158,8 @@ class Model:
         gram = node.get_gram()
         # has no more parent nodes
         if len(gram) <= 1:
+            if len(gram) == 1:
+                self.level1.add(node)
             return
         gram_left = gram[:-1] # removing last char
 
@@ -242,7 +247,7 @@ class Model:
             self.phi_collection.append(Phi(i))
         return
     
-    def create_true_mean(self, node):
+    def create_true_mean(self):
         # already been set
 
         for gram in self.nodes:
@@ -269,12 +274,12 @@ class Model:
         # for child in node.get_children():
         #     self.create_true_mean(child)
 
-    def update_prior_mean(self, node):
+    def update_prior_mean(self):
         # if visited is None:
         #     visited = set()
 
-        for gram in self.nodes:
-            self.nodes[gram].update_prior_mean(self.phi_collection)
+        for node in self.roots:
+            node.update_prior_mean(self.phi_collection)
 
         # if node.get_has_run_prior():
         #     return
