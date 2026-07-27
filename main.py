@@ -101,12 +101,12 @@ def main():
     #     model.nodes[g].print_results()
 
     
-    # gr.make_one_learning_plot(model)
-    gr.make_M_plot(model)
+    gr.make_one_learning_plot(model)
+    # gr.make_M_plot(model)
     # gr.make_m_plot_no_initial(model)
     # gr.make_predictive_plot(model)
 
-    # gr.make_M_and_predictive(model)
+    gr.make_M_and_predictive(model)
 
 
     # build_full()

@@ -12,119 +12,6 @@ from matplotlib.lines import Line2D
 from mean_general import Node
 from model import Model
 
-def make_leanring_plot(model):
-    fig, (ax1, ax2) = plt.subplots(
-    1, 2,
-    figsize=(12, 5),
-    sharey=True
-    )
-    prior_means = []
-    prior_stds = []
-    true_means = []
-    post_means = []
-    post_stds = []
-    # starting with 5
-    grams = ["T", "TH", "HE", "H", "THE", "E"]
-    grams_mod = []
-    x = grams_mod
-    labels = grams_mod
-    for g in grams:
-        
-        node = model.nodes[g]
-        # i = random.randint(0, node.p-1)
-        i = 0
-        g += "[" + str(i) + "]"
-        grams_mod.append(g)
-        mean = node.get_prior_mean().flatten()[i]
-        prior_means.append(mean)
-        true_mean = node.get_true_mean().flatten()[i]
-        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        # prior_std = np.sqrt((node.prior_var[i][i]))
-        prior_std = abs(mean-true_mean)/2
-        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
-        # print(np.sqrt(np.diag(node.prior_var)))
-        prior_stds.append(2*prior_std)
-        true_means.append(true_mean)
-        post_means.append(node.get_est_mean().flatten()[i])
-        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        # post_std = np.sqrt((node.post_var[i][i]))
-        post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
-        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
-        # print(np.sqrt(np.diag(node.prior_var)))
-        post_stds.append(2*post_std)
-
-    sort_idx = np.argsort(true_means)[::-1] 
-    true_means      = np.array(true_means)[sort_idx]
-    prior_means     = np.array(prior_means)[sort_idx]
-    prior_stds      = np.array(prior_stds)[sort_idx]
-    post_means = np.array(post_means)[sort_idx]
-    post_stds  = np.array(post_stds)[sort_idx]
-
-    labels = np.array(labels)[sort_idx]
-
-    # Prior
-    ax1.errorbar(
-        x,
-        prior_means,
-        yerr=prior_stds,
-        fmt='o',
-        capsize=4,
-        label='Prior'
-    )
-
-    ax1.scatter(
-        x,
-        true_means,
-        color='red',
-        marker='*',
-        s=120,
-        label='Truth'
-    )
-
-    ax1.set_title('Prior')
-    ax1.set_xticks(x)
-    ax1.set_xticklabels(labels, rotation=45)
-
-    # Posterior
-    ax2.errorbar(
-        x,
-        post_means,
-        yerr=post_stds,
-        fmt='o',
-        capsize=4,
-        label='Posterior'
-    )
-
-    ax2.scatter(
-        x,
-        true_means,
-        color='red',
-        marker='*',
-        s=120,
-        label='Truth'
-    )
-    handles, labels = ax1.get_legend_handles_labels()
-
-    # extra = Line2D(
-    #     [0], [0],
-    #     color='none',
-    #     label='Dimension=[i]'
-    # )
-
-
-    ax2.set_title('Posterior')
-    # ax2.set_xticks(x)
-    # ax2.set_xticklabels(labels, rotation=45)
-
-    plt.tight_layout()
-    plt.legend()
-    # ax1.legend()
-    fig.suptitle(
-    f"Prior and Posterior Comparison (mean component [index])"
-    )
-    ax1.set_visible(False)
-    plt.show()
-
 def make_one_learning_plot(model):
     fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -152,30 +39,20 @@ def make_one_learning_plot(model):
         node = model.nodes[g]
         num_children.append(node.get_number_of_children())
         i = random.randint(0, node.p-1)
-        # i = 0
+       
         g += "[" + str(i) + "]"
         grams_mod.append(g)
         mean = node.get_marginal_mean().flatten()[i]
         prior_means.append(mean)
-        # true_mean = node.get_true_mean().flatten()[i]
-        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        # prior_std = np.sqrt((node.prior_var[i][i]))
+       
         post_std = abs(np.quantile(np.array(node.mean_copies), [0.975])[0])
-        # post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
+        
         prior_std = abs(np.quantile(np.array(node.marginal_priors), [0.975])[0])
-        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        # prior_std = np.sqrt((node.prior_var[i][i]))
-        # prior_std = abs((0.5+mean) - (mean-0.5))/4
-        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
-        # print(np.sqrt(np.diag(node.prior_var)))
+       
         prior_stds.append(prior_std)
         true_means.append(node.get_true_mean().flatten()[i])
         post_means.append(node.get_est_mean().flatten()[i])
-        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        # post_std = np.sqrt((node.post_var[i][i]))
-        
-        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
-        # print(np.sqrt(np.diag(node.prior_var)))
+       
         post_stds.append(post_std)
 
     sort_idx = np.argsort(true_means)[::-1] 
@@ -223,8 +100,7 @@ def make_one_learning_plot(model):
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=45)
     ax.legend(
-        # loc='center left',
-        # bbox_to_anchor=(1.02, 0.5)
+       
     )
     ax.set_title(
         "Learning Phase:\n"
@@ -232,13 +108,7 @@ def make_one_learning_plot(model):
         fontsize=10
     )
 
-    table_data = [
-        # ['Blue',   'm = 10'],
-        # ['Orange', 'm = 50'],
-        # ['Green',  'm = 100'],
-        # ['Red',    'm = 500'],
-        # ['Purple', 'm = 1000']
-    ]
+    table_data = []
 
     for i in range(len(grams)):
         row = [grams[i], str(num_children[i])]
@@ -288,30 +158,15 @@ def make_M_plot(model):
         g += "[" + str(i) + "]"
         grams_mod.append(g)
         # mean = node.get_prior_mean().flatten()[i]
-        mean = node.mean_copies[0].flatten()[i]
+        mean = node.get_marginal_mean().flatten()[i]
         prior_means.append(mean)
-        true_mean = node.get_true_mean().flatten()[i]
-        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        # prior_std = np.sqrt((node.prior_var[i][i]))
-        s = abs(mean-true_mean)
-        # if node.get_m() != 0:
-        #     s = s/math.sqrt(node.get_m())
         post_std = abs(np.quantile(np.array(node.mean_copies), [0.975])[0])
         # post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
-        prior_std = post_std
-        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        # prior_std = np.sqrt((node.prior_var[i][i]))
-        # prior_std = abs((0.5+mean) - (mean-0.5))/4
-        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
-        # print(np.sqrt(np.diag(node.prior_var)))
+        prior_std = abs(np.quantile(np.array(node.marginal_priors), [0.975])[0])
         prior_stds.append(prior_std)
         true_means.append(node.get_true_mean().flatten()[i])
         post_means.append(node.get_est_mean().flatten()[i])
-        #prior_std_scalar = [np.sqrt(Sigma[0, 0]) for Sigma in covariances]
-        # post_std = np.sqrt((node.post_var[i][i]))
-        
-        # prior_std = 0.1 * abs(node.mean_copies[0].flatten()[i])
-        # print(np.sqrt(np.diag(node.prior_var)))
+
         post_stds.append(post_std)
         m_values.append(node.get_m())
 
@@ -395,97 +250,6 @@ def make_M_plot(model):
     plt.show()
     return
 
-def make_m_plot_no_initial(model):
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    true_means = []
-    post_means = []
-    post_stds = []
-    m_values = []
-    all_grams = model.nodes.keys()
-    # getting only tri-grams
-    tri_grams = [g for g in all_grams if len(g) == 3]
-    grams = []
-    for m in Node.M:
-        grams += M_helper(tri_grams, m, model)
-    grams_mod = []
-    x = grams_mod
-    labels = grams_mod
-    for g in grams:
-        node = model.nodes[g]
-        i = random.randint(0, node.p-1)
-        g += "[" + str(i) + "]"
-        grams_mod.append(g)
-        post_std = abs(np.quantile(np.array(node.mean_copies), [0.975])[0])
-        true_means.append(node.get_true_mean().flatten()[i])
-        post_means.append(node.get_est_mean().flatten()[i])
-        post_stds.append(post_std)
-        m_values.append(node.get_m())
-
-    m_colors = {
-        0: (2/255, 8/255, 106/255),
-        2: (144/255, 41/255, 43/255),
-        10: (208/255, 44/255, 129/255),
-        100: (0/255, 159/255, 136/255), 
-        500: (91/255, 47/255, 110/255)
-    }
-
-    # sort_idx = np.argsort(true_means)[::-1] 
-    sort_idx = np.argsort(m_values)
-    m_values        = np.array(m_values)[sort_idx]
-    true_means      = np.array(true_means)[sort_idx]
-    post_means = np.array(post_means)[sort_idx]
-    post_stds  = np.array(post_stds)[sort_idx]
-
-    labels = np.array(labels)[sort_idx]
-    x = np.arange(len(labels))
-
-    ax.errorbar(
-        x,
-        post_means,
-        yerr=post_stds,
-        fmt='s',
-        capsize=4,
-        label='Posterior Mean ±2σ'
-    )
-
-    # Truth
-    ax.scatter(
-        x,
-        true_means,
-        marker='*',
-        color = "red",
-        s=150,
-        label='True Mean',
-        zorder=5
-    )
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=45)
-    for tick, m in zip(ax.get_xticklabels(), m_values):
-        tick.set_color(m_colors[m])
-    legend_handles = [
-        Line2D([0], [0], color=color, lw=4, label=f'm = {m}')
-        for m, color in m_colors.items()
-    ]
-
-    ax.legend(handles=ax.get_legend_handles_labels()[0] + legend_handles,
-                loc='center left',
-                bbox_to_anchor=(1.02, 0.5)
-    )
-
-    ax.set_xlabel("Tri-gram where [i] denotes the index of a randomly chosen component of the mean vector, starting at 0")
-    ax.set_ylabel("Mean Value")
-    ax.set_title(
-        "Learning Phase for Tri-grams Where Sample Size, m, Varies",
-        fontsize=10
-    )
-   
-
-    plt.tight_layout()
-    plt.show()
-    return
-
 
 def M_helper(tri_grams, m, model):
     m_gram = []
@@ -513,21 +277,33 @@ def make_predictive_plot(model):
     mod_grams = []
     true_means = []
     m_values = []
+    prior_stds = []
+    prior_means = []
+    new_samples = []
     
     col_y = []
     for g in grams:
         node = model.nodes[g]
         i = random.randint(0, node.p-1)
-        
-       
+
+        # new not trained on data
+        new_node_samples = []
+        for j in range(10):
+            new_node_samples.append(node.sample_MVN(node.true_mean, node.true_var).flatten()[i])
+        new_samples.append(new_node_samples)
         new_y = []
         m_values.append(node.get_m())
         mod_grams.append(g + "[" + str(i) + "]")
-        
-        
+
+        burn = int(len(node.mean_copies)*.1)
+        # predictive priors
+        prior_mean = np.array(node.marginal_data[burn:]).mean(axis=0).flatten()[i]
+        prior_means.append(prior_mean)
+        prior_std = abs(np.quantile(np.array(node.marginal_data[burn:]), [0.975])[0])
+        prior_stds.append(prior_std)
         
         true_means.append(node.get_true_mean().flatten()[i])
-        burn = int(len(node.mean_copies)*.1)
+        
         for mu in node.mean_copies[burn:]:
             y = node.sample_MVN(mu, node.true_var)
             new_y.append(y.flatten().copy()[i])
@@ -553,30 +329,46 @@ def make_predictive_plot(model):
     true_means      = np.array(true_means)[sort_idx]
     col_y = np.array(col_y)[sort_idx]
     stds  = np.array(stds)[sort_idx]
+    prior_stds = np.array(prior_stds)[sort_idx]
+    prior_means = np.array(prior_means)[sort_idx]
+    new_samples = np.array(new_samples)[sort_idx]
 
     labels = np.array(labels)[sort_idx]
     x = np.arange(len(labels))
+    offset = 0.15
 
     ax.errorbar(
-        x,
+        x + offset,
+        prior_means,
+        yerr=prior_stds,
+        fmt='o',
+        capsize=4,
+        label='Initial Mean ±2σ'
+    )
+
+    ax.errorbar(
+        x-offset,
         col_y,
         yerr=stds,
-        color = (91/255, 47/255, 110/255),
+        # color = (91/255, 47/255, 110/255),
         fmt='o',
         capsize=4,
         label='Preditive Posterior Mean ±2σ'
     )
 
     # Truth
-    ax.scatter(
-        x,
-        true_means,
-        marker='*',
-        color = "red",
-        s=150,
-        label='True Mean',
-        zorder=5
-    )
+    for i, samples in enumerate(new_samples):
+        jitter = np.random.uniform(-0.08, 0.08, len(samples))
+
+        ax.scatter(
+            np.full(len(samples), x[i]),
+            samples,
+            marker='*',
+            color = "red",
+            s=40,
+            alpha=0.7,
+            label='New Samples' if i == 0 else ""
+        )
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=45)
@@ -593,12 +385,11 @@ def make_predictive_plot(model):
     )
 
     ax.set_title(
-        "Predictive Posterior Mean Compared to True Mean"
-        "Taken after adding all possible uppercase tri-grams (total of 104) containing \"TH\" and \"HE\"",
+        "Predictive Posterior Mean Compared to New Sample Data",
         fontsize=10
     )
   
-    ax.set_xlabel("Possible n-grams made from tri-gram \"THE\"")
+    ax.set_xlabel("Tri-gram where [i] denotes the index of a randomly chosen component of the mean vector, starting at 0")
     ax.set_ylabel("Mean Value")
    
 
@@ -609,10 +400,18 @@ def make_predictive_plot(model):
 def make_M_and_predictive(model):
     fig, ax = plt.subplots(figsize=(10, 6))
 
+    prior_means = []
+    prior_stds = []
     true_means = []
     post_means = []
     post_stds = []
     m_values = []
+    stds = []
+    new_samples = []
+    
+    col_y = []
+    # starting with 5
+    # grams = ["HER", "THL", "HEM", "THW", "THE"]
     all_grams = model.nodes.keys()
     # getting only tri-grams
     tri_grams = [g for g in all_grams if len(g) == 3]
@@ -621,22 +420,36 @@ def make_M_and_predictive(model):
         grams += M_helper(tri_grams, m, model)
     grams_mod = []
     x = grams_mod
+
+    
     labels = grams_mod
-    col_y = []
-    stds = []
     for g in grams:
+        
         node = model.nodes[g]
         i = random.randint(0, node.p-1)
+        burn = int(len(node.mean_copies)*.1)
+        # i = 0
         g += "[" + str(i) + "]"
         grams_mod.append(g)
-        post_std = abs(np.quantile(np.array(node.mean_copies), [0.975])[0])
+        # mean = node.get_prior_mean().flatten()[i]
+        mean = node.get_marginal_mean().flatten()[i]
+        prior_means.append(mean)
+        post_std = abs(np.quantile(np.array(node.mean_copies[burn:]), [0.975])[0])
+        # post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
+        prior_std = abs(np.quantile(np.array(node.marginal_priors[burn:]), [0.975])[0])
+        prior_stds.append(prior_std)
         true_means.append(node.get_true_mean().flatten()[i])
         post_means.append(node.get_est_mean().flatten()[i])
+
         post_stds.append(post_std)
         m_values.append(node.get_m())
-
+        # predictive part
+        new_node_samples = []
+        for j in range(10):
+            new_node_samples.append(node.sample_MVN(node.true_mean, node.true_var).flatten()[i])
+        new_samples.append(new_node_samples)
         new_y = []
-        burn = int(len(node.mean_copies)*.1)
+        
         for mu in node.mean_copies[burn:]:
             y = node.sample_MVN(mu, node.true_var)
             new_y.append(y.flatten().copy()[i])
@@ -659,16 +472,29 @@ def make_M_and_predictive(model):
     sort_idx = np.argsort(m_values)
     m_values        = np.array(m_values)[sort_idx]
     true_means      = np.array(true_means)[sort_idx]
+    prior_means     = np.array(prior_means)[sort_idx]
+    prior_stds      = np.array(prior_stds)[sort_idx]
     post_means = np.array(post_means)[sort_idx]
     post_stds  = np.array(post_stds)[sort_idx]
+
     col_y = np.array(col_y)[sort_idx]
     stds  = np.array(stds)[sort_idx]
 
     labels = np.array(labels)[sort_idx]
     x = np.arange(len(labels))
+    offset = 0.2
 
     ax.errorbar(
-        x,
+        x - offset,
+        prior_means,
+        yerr=prior_stds,
+        fmt='o',
+        capsize=4,
+        label='Initial Mean ±2σ'
+    )
+
+    ax.errorbar(
+        x + offset,
         post_means,
         yerr=post_stds,
         fmt='s',
@@ -695,12 +521,16 @@ def make_M_and_predictive(model):
         Line2D([0], [0], color=color, lw=4, label=f'm = {m}')
         for m, color in m_colors.items()
     ]
+    # ax.legend(
+    #     loc='center left',
+    #     bbox_to_anchor=(1.02, 0.5)
+    # )
 
     ax.legend(handles=ax.get_legend_handles_labels()[0] + legend_handles,
                 loc='center left',
                 bbox_to_anchor=(1.02, 0.5)
     )
-
+    # ax.legend()
     ax.set_xlabel("Tri-gram where [i] denotes the index of a randomly chosen component of the mean vector, starting at 0")
     ax.set_ylabel("Mean Value")
     ax.set_title(
@@ -712,32 +542,43 @@ def make_M_and_predictive(model):
     plt.tight_layout()
     plt.show()
 
-    # predictive plot
-
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    x = np.arange(len(labels))
+
+    offset = 0.15
 
     ax.errorbar(
-        x,
+        x + offset,
+        prior_means,
+        yerr=prior_stds,
+        fmt='o',
+        capsize=4,
+        label='Initial Mean ±2σ'
+    )
+
+    ax.errorbar(
+        x-offset,
         col_y,
         yerr=stds,
-        color = (91/255, 47/255, 110/255),
+        # color = (91/255, 47/255, 110/255),
         fmt='o',
         capsize=4,
         label='Preditive Posterior Mean ±2σ'
     )
 
     # Truth
-    ax.scatter(
-        x,
-        true_means,
-        marker='*',
-        color = "red",
-        s=150,
-        label='True Mean',
-        zorder=5
-    )
+    for i, samples in enumerate(new_samples):
+        jitter = np.random.uniform(-0.08, 0.08, len(samples))
+
+        ax.scatter(
+            np.full(len(samples), x[i]),
+            samples,
+            marker='*',
+            color = "red",
+            s=40,
+            alpha=0.7,
+            label='New Samples from True Paramters' if i == 0 else ""
+        )
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=45)
@@ -754,12 +595,11 @@ def make_M_and_predictive(model):
     )
 
     ax.set_title(
-        "Predictive Posterior Mean Compared to True Mean"
-        "Taken after adding all possible uppercase tri-grams (total of 104) containing \"TH\" and \"HE\"",
+        "Predictive Posterior Mean Compared to New Sample Data",
         fontsize=10
     )
   
-    ax.set_xlabel("Possible n-grams made from tri-gram \"THE\"")
+    ax.set_xlabel("Tri-gram where [i] denotes the index of a randomly chosen component of the mean vector, starting at 0")
     ax.set_ylabel("Mean Value")
    
 

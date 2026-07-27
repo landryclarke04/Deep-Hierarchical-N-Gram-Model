@@ -71,6 +71,7 @@ class Node:
         # priors and predictors
         self.marginal_priors = []
         self.marginal_mean = None
+        self.marginal_data = []
 
         # cycle boolean
         self.has_run = False
@@ -310,6 +311,8 @@ class Node:
 
         self.marginal_mean = self.sample_MVN(eta, self.prior_var)
         self.marginal_priors.append(self.marginal_mean.copy())
+        if self.has_no_children():
+            self.marginal_data.append(self.sample_MVN(self.marginal_mean, self.true_var))
 
     # prior and true mean methods
 
