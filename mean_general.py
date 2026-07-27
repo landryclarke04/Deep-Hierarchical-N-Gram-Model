@@ -68,6 +68,10 @@ class Node:
         self.est_mean = None
         self.mean_copies = []
 
+        # priors and predictors
+        self.marginal_priors = []
+        self.marginal_mean = None
+
         # cycle boolean
         self.has_run = False
         self.has_run_prior = False
@@ -286,6 +290,27 @@ class Node:
         with open("../track_mean_est.md", "a") as file:
             file.writelines(string)
 
+    def marginal_prior_update(self, phi_collection):
+        if self.check_parents():
+            if len(self.left_par.marginal_priors) <= len(self.marginal_priors):
+                self.left_par.marginal_prior_update(phi_collection)
+            if len(self.right_par.marginal_priors) <= len(self.marginal_priors):
+                self.right_par.marginal_prior_update(phi_collection)
+        if self.p == 1:
+            eta = Node.mu_omega
+        else:
+            phi = phi_collection[len(self.gram)-1]
+            phi_left = phi.phi_left()
+            phi_right = phi.phi_right()
+            eta = (phi_left @ self.left_parent().get_marginal_mean() + phi_right 
+                        @ self.right_parent().get_marginal_mean())
+            # checking last edge case (level 2 needs delta as well)
+            if self.p == 3:
+                eta += Node.phi_delta @ Node.mu_delta
+
+        self.marginal_mean = self.sample_MVN(eta, self.prior_var)
+        self.marginal_priors.append(self.marginal_mean.copy())
+
     # prior and true mean methods
 
     def update_prior_mean(self, phi_collection):
@@ -318,7 +343,9 @@ class Node:
         # est_mean = N(self. prior, self.prior_var)
         self.has_run_prior = True
         if self.est_mean is None:
-            self.est_mean = self.sample_MVN(self.prior_mean, self.prior_var)
+            i = random.randint(0, len(self.marginal_priors)-1)
+            self.marginal_mean = self.marginal_priors[i]
+            self.est_mean = self.marginal_mean.copy()
         
 
     def create_true_mean(self, phi_collection):
@@ -458,6 +485,9 @@ class Node:
 
     def get_m(self):
         return self.m
+
+    def get_marginal_mean(self):
+        return self.marginal_mean
     
     def __str__(self):
         return self.gram
