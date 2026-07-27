@@ -17,6 +17,7 @@ def make_one_learning_plot(model):
 
     prior_means = []
     prior_stds = []
+    gibbs_inits = []
     true_means = []
     post_means = []
     post_stds = []
@@ -42,23 +43,26 @@ def make_one_learning_plot(model):
        
         g += "[" + str(i) + "]"
         grams_mod.append(g)
-        mean = node.get_marginal_mean().flatten()[i]
+        mean = node.get_marginal_prior_mean().flatten()[i]
         prior_means.append(mean)
-       
+        gibbs_inits.append(node.get_gibbs_init_mean().flatten()[i])
+
         post_std = abs(np.quantile(np.array(node.mean_copies), [0.975])[0])
-        
-        prior_std = abs(np.quantile(np.array(node.marginal_priors), [0.975])[0])
-       
+
+        # ±2σ spread of the marginal-prior samples for this component
+        prior_std = 2 * np.std(np.array(node.marginal_priors)[:, i, 0])
+
         prior_stds.append(prior_std)
         true_means.append(node.get_true_mean().flatten()[i])
         post_means.append(node.get_est_mean().flatten()[i])
        
         post_stds.append(post_std)
 
-    sort_idx = np.argsort(true_means)[::-1] 
+    sort_idx = np.argsort(true_means)[::-1]
     true_means      = np.array(true_means)[sort_idx]
     prior_means     = np.array(prior_means)[sort_idx]
     prior_stds      = np.array(prior_stds)[sort_idx]
+    gibbs_inits     = np.array(gibbs_inits)[sort_idx]
     post_means = np.array(post_means)[sort_idx]
     post_stds  = np.array(post_stds)[sort_idx]
     num_children = np.array(num_children)[sort_idx]
@@ -66,15 +70,27 @@ def make_one_learning_plot(model):
 
     labels = np.array(labels)[sort_idx]
     x = np.arange(len(labels))
-    offset = 0.15
+    offset = 0.18
 
+    # Blue: mean of the marginal-prior samples (the "prior marginal mean")
     ax.errorbar(
-        x - offset,
+        x - 2*offset,
         prior_means,
         yerr=prior_stds,
         fmt='o',
         capsize=4,
-        label='Initial Mean ±2σ'
+        label='Prior Marginal Mean ±2σ'
+    )
+
+    # Black cross: the single marginal-prior draw that seeds Gibbs (est_mean at t=0)
+    ax.scatter(
+        x - offset,
+        gibbs_inits,
+        marker='X',
+        color='black',
+        s=70,
+        label='Gibbs Initial Value',
+        zorder=6
     )
 
     ax.errorbar(
@@ -402,13 +418,14 @@ def make_M_and_predictive(model):
 
     prior_means = []
     prior_stds = []
+    gibbs_inits = []
     true_means = []
     post_means = []
     post_stds = []
     m_values = []
     stds = []
     new_samples = []
-    
+
     col_y = []
     # starting with 5
     # grams = ["HER", "THL", "HEM", "THW", "THE"]
@@ -432,11 +449,13 @@ def make_M_and_predictive(model):
         g += "[" + str(i) + "]"
         grams_mod.append(g)
         # mean = node.get_prior_mean().flatten()[i]
-        mean = node.get_marginal_mean().flatten()[i]
+        mean = node.get_marginal_prior_mean().flatten()[i]
         prior_means.append(mean)
+        gibbs_inits.append(node.get_gibbs_init_mean().flatten()[i])
         post_std = abs(np.quantile(np.array(node.mean_copies[burn:]), [0.975])[0])
         # post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
-        prior_std = abs(np.quantile(np.array(node.marginal_priors[burn:]), [0.975])[0])
+        # ±2σ spread of the marginal-prior samples for this component
+        prior_std = 2 * np.std(np.array(node.marginal_priors)[burn:, i, 0])
         prior_stds.append(prior_std)
         true_means.append(node.get_true_mean().flatten()[i])
         post_means.append(node.get_est_mean().flatten()[i])
@@ -474,6 +493,7 @@ def make_M_and_predictive(model):
     true_means      = np.array(true_means)[sort_idx]
     prior_means     = np.array(prior_means)[sort_idx]
     prior_stds      = np.array(prior_stds)[sort_idx]
+    gibbs_inits     = np.array(gibbs_inits)[sort_idx]
     post_means = np.array(post_means)[sort_idx]
     post_stds  = np.array(post_stds)[sort_idx]
 
@@ -482,15 +502,27 @@ def make_M_and_predictive(model):
 
     labels = np.array(labels)[sort_idx]
     x = np.arange(len(labels))
-    offset = 0.2
+    offset = 0.18
 
+    # Blue: mean of the marginal-prior samples (the "prior marginal mean")
     ax.errorbar(
-        x - offset,
+        x - 2*offset,
         prior_means,
         yerr=prior_stds,
         fmt='o',
         capsize=4,
-        label='Initial Mean ±2σ'
+        label='Prior Marginal Mean ±2σ'
+    )
+
+    # Black cross: the single marginal-prior draw that seeds Gibbs (est_mean at t=0)
+    ax.scatter(
+        x - offset,
+        gibbs_inits,
+        marker='X',
+        color='black',
+        s=70,
+        label='Gibbs Initial Value',
+        zorder=6
     )
 
     ax.errorbar(
@@ -553,7 +585,7 @@ def make_M_and_predictive(model):
         yerr=prior_stds,
         fmt='o',
         capsize=4,
-        label='Initial Mean ±2σ'
+        label='Prior Marginal Mean ±2σ'
     )
 
     ax.errorbar(
@@ -603,5 +635,169 @@ def make_M_and_predictive(model):
     ax.set_ylabel("Mean Value")
    
 
+    plt.tight_layout()
+    plt.show()
+
+# ---------------------------------------------------------------------------
+# Error-based redesign: highlight the effectiveness of learning by plotting
+# error relative to truth (truth == 0), not absolute mean levels.
+# ---------------------------------------------------------------------------
+
+def _collect_errors(model):
+    """Prior- and posterior-error for every component of every fitted node.
+
+    Returns (prior_err, post_err) as flat arrays of (estimate - true), where
+    the prior estimate is the marginal-prior mean and the posterior estimate
+    is the Gibbs posterior mean (est_mean after burn-in averaging).
+    """
+    prior_err = []
+    post_err = []
+    for gram, node in model.nodes.items():
+        tm = node.get_true_mean()
+        pm = node.get_marginal_prior_mean()
+        em = node.get_est_mean()
+        if tm is None or pm is None or em is None:
+            continue
+        tm = tm.flatten(); pm = pm.flatten(); em = em.flatten()
+        prior_err.extend((pm - tm).tolist())
+        post_err.extend((em - tm).tolist())
+    return np.array(prior_err), np.array(post_err)
+
+
+def make_learning_error_plot(model, n_show=18):
+    """Two-panel learning figure.
+
+    Left  : per-gram dumbbell of error (prior -> posterior), truth at 0.
+    Right : ECDF of |error| over ALL components (prior vs posterior).
+    """
+    # ----- aggregate over every component -----
+    all_prior_err, all_post_err = _collect_errors(model)
+
+    # ----- sample a readable subset for the per-gram panel -----
+    fitted = [g for g in model.nodes if model.nodes[g].get_est_mean() is not None]
+    chosen = random.sample(fitted, min(n_show, len(fitted)))
+    rows = []
+    for g in chosen:
+        node = model.nodes[g]
+        i = random.randint(0, node.p - 1)
+        tm = node.get_true_mean().flatten()[i]
+        pe = node.get_marginal_prior_mean().flatten()[i] - tm
+        po = node.get_est_mean().flatten()[i] - tm
+        rows.append((f"{g}[{i}]", pe, po))
+    # largest prior error at the top
+    rows.sort(key=lambda r: abs(r[1]))
+    labels = [r[0] for r in rows]
+    prior_e = np.array([r[1] for r in rows])
+    post_e = np.array([r[2] for r in rows])
+    y = np.arange(len(rows))
+
+    fig, (axL, axR) = plt.subplots(
+        1, 2, figsize=(14, 7), gridspec_kw={"width_ratios": [1.6, 1]}
+    )
+
+    # ===== Panel A: per-gram error, prior -> posterior =====
+    axL.axvline(0, color="red", lw=1.5, zorder=1, label="Truth (zero error)")
+    for yi, pe, po in zip(y, prior_e, post_e):
+        axL.annotate(
+            "", xy=(po, yi), xytext=(pe, yi),
+            arrowprops=dict(arrowstyle="->", color="0.6", lw=1.8), zorder=2,
+        )
+    axL.scatter(prior_e, y, color="tab:blue", s=60, zorder=3,
+                label="Prior marginal mean error")
+    axL.scatter(post_e, y, color="tab:green", marker="s", s=55, zorder=3,
+                label="Posterior error")
+    axL.set_yticks(y)
+    axL.set_yticklabels(labels, fontsize=8)
+    axL.set_xlabel("Estimate - True   (0 = perfect)")
+    axL.set_title("Per-gram error: prior -> posterior")
+    axL.legend(fontsize=8, loc="lower right")
+
+    # ===== Panel B: aggregate |error| ECDF over all components =====
+    def ecdf(a):
+        s = np.sort(a)
+        return s, np.arange(1, len(s) + 1) / len(s)
+
+    xp, yp = ecdf(np.abs(all_prior_err))
+    xq, yq = ecdf(np.abs(all_post_err))
+    axR.plot(xp, yp, color="tab:blue", lw=2,
+             label=f"Prior  (median {np.median(np.abs(all_prior_err)):.2f})")
+    axR.plot(xq, yq, color="tab:green", lw=2,
+             label=f"Posterior  (median {np.median(np.abs(all_post_err)):.2f})")
+    axR.set_xlabel("|Estimate - True|")
+    axR.set_ylabel("Fraction of components <= x")
+    axR.set_title(f"Absolute error over all {len(all_prior_err)} components")
+    axR.legend(fontsize=9, loc="lower right")
+
+    beats = float(np.mean(np.abs(all_post_err) < np.abs(all_prior_err))) * 100
+    fig.suptitle(
+        "Effectiveness of learning: posterior beats prior for "
+        f"{beats:.0f}% of components",
+        fontsize=12,
+    )
+    plt.tight_layout()
+    plt.show()
+
+
+def make_error_vs_m_plot(model):
+    """Learning vs. sample size, aggregated over all tri-grams.
+
+    For every tri-gram we compute the RMSE (over that gram's mean
+    components) of three estimators:
+      - prior marginal mean : never sees data -> flat baseline
+      - Gibbs initial value : a single marginal-prior draw -> flat, but
+                              noisier than the prior *mean*
+      - Gibbs posterior mean: conditions on the data -> falls sharply in m
+
+    Each curve is the median RMSE across tri-grams with an inter-quartile
+    band (robust to the right-skew of RMSE; never dips below 0). The y-axis
+    is log-scaled because the posterior spans roughly two decades.
+    """
+    from collections import defaultdict
+
+    def rmse(est, true):
+        return float(np.sqrt(np.mean((est.flatten() - true.flatten()) ** 2)))
+
+    # (attribute getter, color, line style, legend label)
+    curves = {
+        "prior":     ("get_marginal_prior_mean", "tab:blue",   "o--",
+                      "Prior marginal mean (baseline)"),
+        "init":      ("get_gibbs_init_mean",     "tab:orange", "^:",
+                      "Gibbs initial value (single prior draw)"),
+        "posterior": ("get_est_mean",            "tab:green",  "s-",
+                      "Gibbs posterior mean"),
+    }
+
+    by_m = {k: defaultdict(list) for k in curves}
+    for g in model.nodes:
+        if len(g) != 3:
+            continue
+        node = model.nodes[g]
+        tm = node.get_true_mean()
+        if tm is None:
+            continue
+        m = node.get_m()
+        for k, (getter, *_rest) in curves.items():
+            est = getattr(node, getter)()
+            if est is not None:
+                by_m[k][m].append(rmse(est, tm))
+
+    ms = sorted(by_m["posterior"])
+    xpos = np.arange(len(ms))
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+    for k, (getter, color, fmt, label) in curves.items():
+        med = np.array([np.median(by_m[k][m]) for m in ms])
+        q25 = np.array([np.percentile(by_m[k][m], 25) for m in ms])
+        q75 = np.array([np.percentile(by_m[k][m], 75) for m in ms])
+        ax.fill_between(xpos, q25, q75, color=color, alpha=0.15)
+        ax.plot(xpos, med, fmt, color=color, lw=2, label=label)
+
+    ax.set_yscale("log")
+    ax.set_xticks(xpos)
+    ax.set_xticklabels([str(m) for m in ms])
+    ax.set_xlabel("m  (observations per tri-gram)")
+    ax.set_ylabel("RMSE per tri-gram  (median, IQR band; log scale)")
+    ax.set_title("Learning vs. sample size: posterior RMSE falls sharply with m")
+    ax.legend()
     plt.tight_layout()
     plt.show()
