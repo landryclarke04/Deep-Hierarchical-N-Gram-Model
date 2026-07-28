@@ -66,6 +66,9 @@ class Node:
 
         # what will be compared to true_mean
         self.est_mean = None
+        # the single draw from the marginal prior used to seed the Gibbs
+        # sampler (est_mean at iteration 0), captured before Gibbs overwrites it
+        self.gibbs_init_mean = None
         self.mean_copies = []
 
         # priors and predictors
@@ -349,6 +352,8 @@ class Node:
             i = random.randint(0, len(self.marginal_priors)-1)
             self.marginal_mean = self.marginal_priors[i]
             self.est_mean = self.marginal_mean.copy()
+            # remember the initializing draw; est_mean will be mutated by Gibbs
+            self.gibbs_init_mean = self.est_mean.copy()
         
 
     def create_true_mean(self, phi_collection):
@@ -491,7 +496,16 @@ class Node:
 
     def get_marginal_mean(self):
         return self.marginal_mean
-    
+
+    def get_marginal_prior_mean(self):
+        # Monte-Carlo mean of the marginal-prior samples: E[mean] under the
+        # marginal prior. Stable summary, distinct from any single draw.
+        return np.mean(np.array(self.marginal_priors), axis=0).reshape(self.p, 1)
+
+    def get_gibbs_init_mean(self):
+        # the single marginal-prior draw used to initialize Gibbs (est_mean at t=0)
+        return self.gibbs_init_mean
+
     def __str__(self):
         return self.gram
 
