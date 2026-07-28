@@ -644,34 +644,41 @@ def make_M_and_predictive(model):
 # ---------------------------------------------------------------------------
 
 def _collect_errors(model):
-    """Prior- and posterior-error for every component of every fitted node.
+    """Estimator errors for every component of every fitted node.
 
-    Returns (prior_err, post_err) as flat arrays of (estimate - true), where
-    the prior estimate is the marginal-prior mean and the posterior estimate
-    is the Gibbs posterior mean (est_mean after burn-in averaging).
+    Returns (prior_err, post_err, mle_err) as flat arrays of (estimate - true).
+    Prior and posterior errors span the whole hierarchy; the MLE error is only
+    defined on data-bearing tri-grams (no sharing -> nothing to estimate at an
+    internal or data-less node), so its array is shorter.
     """
     prior_err = []
     post_err = []
+    mle_err = []
     for gram, node in model.nodes.items():
         tm = node.get_true_mean()
         pm = node.get_marginal_prior_mean()
         em = node.get_est_mean()
         if tm is None or pm is None or em is None:
             continue
-        tm = tm.flatten(); pm = pm.flatten(); em = em.flatten()
-        prior_err.extend((pm - tm).tolist())
-        post_err.extend((em - tm).tolist())
-    return np.array(prior_err), np.array(post_err)
+        tmf = tm.flatten(); pm = pm.flatten(); em = em.flatten()
+        prior_err.extend((pm - tmf).tolist())
+        post_err.extend((em - tmf).tolist())
+        mle = node.get_mle_mean()
+        if mle is not None:
+            mle_err.extend((mle.flatten() - tmf).tolist())
+    return np.array(prior_err), np.array(post_err), np.array(mle_err)
 
 
 def make_learning_error_plot(model, n_show=18):
     """Two-panel learning figure.
 
-    Left  : per-gram dumbbell of error (prior -> posterior), truth at 0.
-    Right : ECDF of |error| over ALL components (prior vs posterior).
+    Left  : per-gram dumbbell of error (prior -> posterior), truth at 0, with
+            the MLE baseline (own data only) shown where it is defined.
+    Right : ECDF of |error| (prior vs posterior over the whole hierarchy; MLE
+            over the data-bearing tri-grams where it exists).
     """
     # ----- aggregate over every component -----
-    all_prior_err, all_post_err = _collect_errors(model)
+    all_prior_err, all_post_err, all_mle_err = _collect_errors(model)
 
     # ----- sample a readable subset for the per-gram panel -----
     fitted = [g for g in model.nodes if model.nodes[g].get_est_mean() is not None]
@@ -690,7 +697,13 @@ def make_learning_error_plot(model, n_show=18):
         mc = np.array(node.mean_copies)
         burn = int(len(mc) * 0.1)
         mc = mc[burn:, i, 0]
-        rows.append((f"{g}[{i}]", pe, po, mp.std(), mc.std()))
+        # MLE baseline (own sample mean, no sharing); NaN where undefined.
+        mle = node.get_mle_mean()
+        se = node.get_mle_se()
+        me = mle.flatten()[i] - tm if mle is not None else np.nan
+        mse = se.flatten()[i] if se is not None else (
+            0.0 if mle is not None else np.nan)
+        rows.append((f"{g}[{i}]", pe, po, mp.std(), mc.std(), me, mse))
     # largest prior error at the top
     rows.sort(key=lambda r: abs(r[1]))
     labels = [r[0] for r in rows]
@@ -698,6 +711,8 @@ def make_learning_error_plot(model, n_show=18):
     post_e = np.array([r[2] for r in rows])
     prior_sd = np.array([r[3] for r in rows])
     post_sd = np.array([r[4] for r in rows])
+    mle_e = np.array([r[5] for r in rows])
+    mle_sd = np.array([r[6] for r in rows])
     y = np.arange(len(rows))
 
     fig, (axL, axR) = plt.subplots(
@@ -720,6 +735,11 @@ def make_learning_error_plot(model, n_show=18):
     axL.errorbar(post_e, y, xerr=2 * post_sd, fmt="s", color="tab:green",
                  capsize=3, markersize=6, zorder=3,
                  label="Posterior mean  ±2σ")
+    mle_mask = ~np.isnan(mle_e)
+    if mle_mask.any():
+        axL.errorbar(mle_e[mle_mask], y[mle_mask], xerr=2 * mle_sd[mle_mask],
+                     fmt="D", color="tab:red", capsize=3, markersize=6,
+                     zorder=4, label="MLE, own data only  ±2·SE")
     axL.set_yticks(y)
     axL.set_yticklabels(labels, fontsize=8)
     axL.set_xlabel("Estimate − True   (0 = perfect)")
@@ -727,21 +747,44 @@ def make_learning_error_plot(model, n_show=18):
                   fontsize=10)
     axL.legend(fontsize=8, loc="lower right")
 
-    # ===== Panel B: aggregate |error| ECDF over all components =====
+    # ===== Panel B: FAIR |error| ECDF on the common support =====
+    # The MLE only exists on data-bearing tri-grams, so to compare estimators
+    # head-to-head we score all three on exactly that subset (otherwise the
+    # MLE looks artificially strong -- it is only ever asked the easy,
+    # data-rich questions). The whole-hierarchy "posterior beats prior" story
+    # lives in the left panel and the suptitle.
     def ecdf(a):
         s = np.sort(a)
         return s, np.arange(1, len(s) + 1) / len(s)
 
-    xp, yp = ecdf(np.abs(all_prior_err))
-    xq, yq = ecdf(np.abs(all_post_err))
+    dp = []; dq = []; dr = []   # prior / posterior / mle on data tri-grams
+    for g in model.nodes:
+        if len(g) != 3:
+            continue
+        node = model.nodes[g]
+        tm = node.get_true_mean()
+        mle = node.get_mle_mean()
+        if tm is None or mle is None:
+            continue
+        tmf = tm.flatten()
+        dp.extend(np.abs(node.get_marginal_prior_mean().flatten() - tmf))
+        dq.extend(np.abs(node.get_est_mean().flatten() - tmf))
+        dr.extend(np.abs(mle.flatten() - tmf))
+    dp = np.array(dp); dq = np.array(dq); dr = np.array(dr)
+
+    xp, yp = ecdf(dp)
+    xq, yq = ecdf(dq)
+    xr, yr = ecdf(dr)
     axR.plot(xp, yp, color="tab:blue", lw=2,
-             label=f"Prior  (median {np.median(np.abs(all_prior_err)):.2f})")
+             label=f"Prior  (median {np.median(dp):.2f})")
     axR.plot(xq, yq, color="tab:green", lw=2,
-             label=f"Posterior  (median {np.median(np.abs(all_post_err)):.2f})")
+             label=f"Posterior — shares info  (median {np.median(dq):.2f})")
+    axR.plot(xr, yr, color="tab:red", lw=2, ls="-.",
+             label=f"MLE — no sharing  (median {np.median(dr):.2f})")
     axR.set_xlabel("|Estimate - True|")
     axR.set_ylabel("Fraction of components <= x")
-    axR.set_title(f"Absolute error over all {len(all_prior_err)} components")
-    axR.legend(fontsize=9, loc="lower right")
+    axR.set_title(f"Fair comparison on data tri-grams (N={len(dr)} comps)")
+    axR.legend(fontsize=8, loc="lower right")
 
     beats = float(np.mean(np.abs(all_post_err) < np.abs(all_prior_err))) * 100
     fig.suptitle(
@@ -754,18 +797,18 @@ def make_learning_error_plot(model, n_show=18):
 
 
 def make_error_vs_m_plot(model):
-    """Learning vs. sample size, aggregated over all tri-grams.
+    """Error vs. sample size for the posterior mean vs. the MLE.
 
-    For every tri-gram we compute the RMSE (over that gram's mean
-    components) of three estimators:
-      - prior marginal mean : never sees data -> flat baseline
-      - Gibbs initial value : a single marginal-prior draw -> flat, but
-                              noisier than the prior *mean*
-      - Gibbs posterior mean: conditions on the data -> falls sharply in m
+    For every tri-gram we compute the RMSE (over that gram's mean components)
+    of two estimators:
+      - MLE (own sample mean): NO hierarchical sharing; undefined at m=0.
+      - Gibbs posterior mean : conditions on the data AND shares across the
+                               hierarchy -> lower error at small m, converging
+                               to the MLE as m grows.
 
     Each curve is the median RMSE across tri-grams with an inter-quartile
     band (robust to the right-skew of RMSE; never dips below 0). The y-axis
-    is log-scaled because the posterior spans roughly two decades.
+    is log-scaled. The MLE curve has no point at m=0 (no data -> undefined).
     """
     from collections import defaultdict
 
@@ -774,12 +817,10 @@ def make_error_vs_m_plot(model):
 
     # (attribute getter, color, line style, legend label)
     curves = {
-        "prior":     ("get_marginal_prior_mean", "tab:blue",   "o--",
-                      "Prior marginal mean (baseline)"),
-        "init":      ("get_gibbs_init_mean",     "tab:orange", "^:",
-                      "Gibbs initial value (single prior draw)"),
-        "posterior": ("get_est_mean",            "tab:green",  "s-",
-                      "Gibbs posterior mean"),
+        "mle":       ("get_mle_mean", "tab:red",   "D-.",
+                      "MLE — own data only (no sharing)"),
+        "posterior": ("get_est_mean", "tab:green", "s-",
+                      "Posterior mean — shares info"),
     }
 
     by_m = {k: defaultdict(list) for k in curves}
@@ -801,18 +842,24 @@ def make_error_vs_m_plot(model):
 
     fig, ax = plt.subplots(figsize=(9, 6))
     for k, (getter, color, fmt, label) in curves.items():
-        med = np.array([np.median(by_m[k][m]) for m in ms])
-        q25 = np.array([np.percentile(by_m[k][m], 25) for m in ms])
-        q75 = np.array([np.percentile(by_m[k][m], 75) for m in ms])
-        ax.fill_between(xpos, q25, q75, color=color, alpha=0.15)
-        ax.plot(xpos, med, fmt, color=color, lw=2, label=label)
+        # a curve may be undefined for some m (e.g. MLE at m=0): plot only
+        # the ticks where it has data.
+        idx = [j for j, m in enumerate(ms) if by_m[k][m]]
+        if not idx:
+            continue
+        xk = np.array([xpos[j] for j in idx])
+        med = np.array([np.median(by_m[k][ms[j]]) for j in idx])
+        q25 = np.array([np.percentile(by_m[k][ms[j]], 25) for j in idx])
+        q75 = np.array([np.percentile(by_m[k][ms[j]], 75) for j in idx])
+        ax.fill_between(xk, q25, q75, color=color, alpha=0.15)
+        ax.plot(xk, med, fmt, color=color, lw=2, label=label)
 
     ax.set_yscale("log")
     ax.set_xticks(xpos)
     ax.set_xticklabels([str(m) for m in ms])
     ax.set_xlabel("m  (observations per tri-gram)")
     ax.set_ylabel("RMSE per tri-gram  (median, IQR band; log scale)")
-    ax.set_title("Learning vs. sample size: posterior RMSE falls sharply with m")
+    ax.set_title("Posterior mean vs. MLE: error vs. sample size m")
     ax.legend()
     plt.tight_layout()
     plt.show()
@@ -858,7 +905,8 @@ def make_trigram_learning_plot(model):
     labels = []
     prior_e = []; prior_sd = []
     post_e = []; post_sd = []
-    for m in ms:
+    mle_x = []; mle_e = []; mle_sd = []   # MLE only where it is defined (m>0)
+    for j, m in enumerate(ms):
         lst = sorted(cand[m], key=lambda r: r[0])
         _, g, i = lst[len(lst) // 2]          # median by |posterior error|
         node = model.nodes[g]
@@ -871,16 +919,29 @@ def make_trigram_learning_plot(model):
         post_sd.append(mc[burn:, i, 0].std())
         labels.append(f"m = {m}\n{g}[{i}]")
 
+        # MLE baseline (own sample mean, no sharing); absent at m=0.
+        mle = node.get_mle_mean()
+        se = node.get_mle_se()
+        if mle is not None:
+            mle_x.append(j)
+            mle_e.append(mle.flatten()[i] - tm)
+            mle_sd.append(se.flatten()[i] if se is not None else 0.0)
+
     prior_e = np.array(prior_e); prior_sd = np.array(prior_sd)
     post_e = np.array(post_e); post_sd = np.array(post_sd)
+    mle_x = np.array(mle_x); mle_e = np.array(mle_e); mle_sd = np.array(mle_sd)
     xpos = np.arange(len(ms))
-    off = 0.12
+    off = 0.16
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.axhline(0, color="red", lw=1.5, zorder=1, label="Truth (error = 0)")
     ax.errorbar(xpos - off, prior_e, yerr=2 * prior_sd, fmt="o",
                 color="tab:blue", capsize=4, zorder=3,
                 label="Prior marginal mean  ±2σ")
+    if len(mle_x):
+        ax.errorbar(mle_x, mle_e, yerr=2 * mle_sd, fmt="D",
+                    color="tab:red", capsize=4, zorder=3,
+                    label="MLE, own data only  ±2·SE")
     ax.errorbar(xpos + off, post_e, yerr=2 * post_sd, fmt="s",
                 color="tab:green", capsize=4, zorder=3,
                 label="Posterior mean  ±2σ")
@@ -892,6 +953,114 @@ def make_trigram_learning_plot(model):
         "Learning phase for tri-grams: approximation error vs m\n"
         "median-error gram per m; good estimator → interval covers 0, "
         "width shrinks with m",
+        fontsize=10,
+    )
+    ax.legend(loc="best")
+    plt.tight_layout()
+    plt.show()
+
+
+def make_posterior_predictive_check(model, n_new=40):
+    """Predictive posterior mean compared to new data, per representative tri-gram.
+
+    One tick per value of m, using the same median-error representative
+    tri-gram+component as the learning plot. At each tick we compare:
+
+      - Posterior predictive for a NEW observation y: draw y ~ N(mu, true_var)
+        across the Gibbs posterior samples mu of the mean, then summarize by
+        mean +/- 2 sigma (this folds in both posterior uncertainty about the
+        mean AND the observation noise true_var).
+      - Genuinely NEW data the model never saw: fresh draws
+        y ~ N(true_mean, true_var) from the true data-generating process.
+
+    A well-fit model's predictive band should cover the held-out data, and the
+    predictive mean should track the truth -- increasingly so as m grows.
+    """
+    from collections import defaultdict
+
+    # representative (gram, component) per m = median |posterior-mean error|
+    cand = defaultdict(list)
+    for g in model.nodes:
+        if len(g) != 3:
+            continue
+        node = model.nodes[g]
+        tm = node.get_true_mean()
+        em = node.get_est_mean()
+        if tm is None or em is None:
+            continue
+        tm = tm.flatten(); em = em.flatten()
+        m = node.get_m()
+        for i in range(len(tm)):
+            cand[m].append((abs(em[i] - tm[i]), g, i))
+    ms = sorted(cand)
+
+    labels = []
+    pred_mean = []; pred_sd = []; true_vals = []; new_pts = []
+    mle_x = []; mle_pred = []            # MLE plug-in prediction (y-bar); m>0 only
+    for j, m in enumerate(ms):
+        lst = sorted(cand[m], key=lambda r: r[0])
+        _, g, i = lst[len(lst) // 2]
+        node = model.nodes[g]
+        burn = int(len(node.mean_copies) * 0.1)
+
+        # posterior predictive draws of a new observation y
+        yy = np.array([
+            node.sample_MVN(mu, node.true_var).flatten()[i]
+            for mu in node.mean_copies[burn:]
+        ])
+        pred_mean.append(yy.mean())
+        pred_sd.append(yy.std())
+
+        # genuinely new data from the TRUE parameters
+        new_pts.append([
+            node.sample_MVN(node.true_mean, node.true_var).flatten()[i]
+            for _ in range(n_new)
+        ])
+
+        true_vals.append(node.get_true_mean().flatten()[i])
+        labels.append(f"m = {m}\n{g}[{i}]")
+
+        # MLE plug-in prediction of new data: center at the sample mean y-bar
+        # (no sharing). Undefined at m=0.
+        mle = node.get_mle_mean()
+        if mle is not None:
+            mle_x.append(j)
+            mle_pred.append(mle.flatten()[i])
+
+    xpos = np.arange(len(ms))
+    pred_mean = np.array(pred_mean); pred_sd = np.array(pred_sd)
+    mle_x = np.array(mle_x); mle_pred = np.array(mle_pred)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # held-out new data
+    for j, (xp, pts) in enumerate(zip(xpos, new_pts)):
+        jitter = np.random.uniform(-0.12, 0.12, len(pts))
+        ax.scatter(np.full(len(pts), xp) + jitter, pts, marker="o", s=18,
+                   color="red", alpha=0.5, zorder=2,
+                   label="New data from true params" if j == 0 else "")
+
+    # MLE plug-in prediction (sample mean, no sharing)
+    if len(mle_x):
+        ax.scatter(mle_x, mle_pred, marker="D", s=70, color="tab:purple",
+                   zorder=5, label="MLE prediction ȳ (no sharing)")
+
+    # posterior predictive mean +/- 2 sigma
+    ax.errorbar(xpos, pred_mean, yerr=2 * pred_sd, fmt="s", color="tab:green",
+                capsize=5, markersize=8, lw=2, zorder=4,
+                label="Posterior predictive mean  ±2σ")
+
+    # true mean, for reference
+    ax.scatter(xpos, true_vals, marker="_", s=400, color="black", zorder=3,
+               label="True mean")
+
+    ax.set_xticks(xpos)
+    ax.set_xticklabels(labels)
+    ax.set_xlabel("m  (observations per tri-gram) — representative gram shown at each m")
+    ax.set_ylabel("Value of a new observation y")
+    ax.set_title(
+        "Predictive posterior mean compared to new data\n"
+        "predictive band should cover the held-out samples",
         fontsize=10,
     )
     ax.legend(loc="best")

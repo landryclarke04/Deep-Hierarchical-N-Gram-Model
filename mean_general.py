@@ -31,6 +31,12 @@ class Node:
 
     M = [500, 100, 10, 2, 0]
 
+    # Between-level (prior) covariance as a fraction of the observation
+    # covariance. Small => a child's true mean sits close to its parent-derived
+    # mean => a strong parent->child signal / informative prior that beats the
+    # no-sharing MLE at low m. Set to 1.0 to recover the old weak-prior regime.
+    LINK_SCALE = 0.1
+
     m = 0
     
     def __init__(self, gram):
@@ -49,8 +55,14 @@ class Node:
        
 
         # variance variables
+        # true_var is the observation noise. link_var is the (much smaller)
+        # between-level covariance -> a strong parent->child signal, i.e. an
+        # informative prior. The inference prior variance is SET EQUAL to the
+        # generative link (fix 3: no separate, mis-specified inverse-Wishart
+        # draw), so inference uses the true prior strength.
         self.true_var = self.get_IWH_var()
-        self.prior_var = self.get_IWH_var()
+        self.link_var = Node.LINK_SCALE * self.true_var
+        self.prior_var = self.link_var
         self.prior_var_inv = np.linalg.inv(self.prior_var)
         self.post_var = None
 
@@ -202,42 +214,38 @@ class Node:
             
 
     def posterior_data(self):
-        # if we have already calculated posterior, just need to sample again
-        if len(self.mean_copies) > 2:
-            self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
-            self.mean_copies.append(self.est_mean.copy())
-            self.has_run = True
-            self.has_run_prior = False
-            return
-        if self.m==0:
-            self.post_mean = self.prior_mean
+        # FIX 2: recompute the posterior EVERY Gibbs sweep from the current
+        # parent-derived prior mean (eta). The old code froze post_mean/post_var
+        # after 3 sweeps and only resampled, so a leaf stayed anchored to an
+        # early, unconverged eta -- the source of the heavy error tail.
+        if self.m == 0:
+            # no data: the posterior is the prior; track the (updating) eta.
             self.post_var = self.prior_var
+            self.post_mean = self.prior_mean
             self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
             self.mean_copies.append(self.est_mean.copy())
             self.has_run = True
             self.has_run_prior = False
             return
-        # post variance wow
+
         true_sig = np.linalg.inv(self.true_var)
         n = self.y.shape[0]
-        self.post_var = np.linalg.inv(self.prior_var_inv + n* true_sig)
+        # post_var depends only on n, prior_var, true_var -> constant across
+        # sweeps, so compute it once and cache it.
+        if self.post_var is None:
+            self.post_var = np.linalg.inv(self.prior_var_inv + n * true_sig)
 
-        # post eta
+        # post_mean tracks the current eta, which improves as the parents do.
         y_bar = np.mean(self.y, axis=0).reshape(self.p, 1)
         eta = self.prior_mean
-        # print(self.gram)
-        # print(eta)
-        self.post_mean = self.post_var @ (self.prior_var_inv@eta + n*true_sig @ y_bar)
-
-        # self.prior_var = self.post_var.copy()
+        self.post_mean = self.post_var @ (self.prior_var_inv @ eta
+                                          + n * true_sig @ y_bar)
 
         self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
         self.mean_copies.append(self.est_mean.copy())
 
         self.has_run = True
         self.has_run_prior = False
-        #self.prior_mean = None
-        # self.run_sample_mean()
 
     def get_final_mean_est(self):
         num_samples = len(self.mean_copies)
@@ -378,9 +386,9 @@ class Node:
             # checking last edge case (level 2 needs delta as well)
             if self.p == 3:
                 eta[1][0] = Node.mu_delta[0][0]
-            # true_mean should be N(eta, true_var)
-            # self.true_mean = eta.reshape(self.p, 1)
-            self.true_mean = self.sample_MVN(eta, self.true_var)
+            # child clusters tightly around the parent-derived mean:
+            # link_var << true_var gives a strong parent->child signal.
+            self.true_mean = self.sample_MVN(eta, self.link_var)
 
         if self.has_no_children():
             if self.gram == "THE":
@@ -447,7 +455,25 @@ class Node:
     
     def get_true_mean(self):
         return self.true_mean
-    
+
+    def get_mle_mean(self):
+        # Maximum-likelihood mean using ONLY this node's own observations, with
+        # NO hierarchical sharing -- the "don't share information" baseline. It
+        # is the per-component sample mean of y, and is defined only for
+        # data-bearing leaves; returns None when the node has no data (m == 0
+        # or an internal node).
+        if self.y is None or len(self.y) == 0:
+            return None
+        return np.mean(self.y, axis=0).reshape(self.p, 1)
+
+    def get_mle_se(self):
+        # Standard error of the MLE mean (sample std / sqrt(m)), per component,
+        # as a (p, 1) column. None when undefined or when m < 2.
+        if self.y is None or len(self.y) < 2:
+            return None
+        n = self.y.shape[0]
+        return (np.std(self.y, axis=0, ddof=1) / np.sqrt(n)).reshape(self.p, 1)
+
     def get_prior_mean(self):
         return self.prior_mean
     
