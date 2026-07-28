@@ -408,6 +408,7 @@ def make_M_and_predictive(model):
     m_values = []
     stds = []
     new_samples = []
+    marg_means = []
     
     col_y = []
     # starting with 5
@@ -432,7 +433,9 @@ def make_M_and_predictive(model):
         g += "[" + str(i) + "]"
         grams_mod.append(g)
         # mean = node.get_prior_mean().flatten()[i]
-        mean = node.get_marginal_mean().flatten()[i]
+        mean = np.array(node.marginal_priors[burn:]).mean(axis=0).flatten()[i]
+        marg_mean = node.get_marginal_mean().flatten()[i]
+        marg_means.append(marg_mean)
         prior_means.append(mean)
         post_std = abs(np.quantile(np.array(node.mean_copies[burn:]), [0.975])[0])
         # post_std = np.std(np.array(node.mean_copies), axis=0)[i][0]
@@ -476,13 +479,15 @@ def make_M_and_predictive(model):
     prior_stds      = np.array(prior_stds)[sort_idx]
     post_means = np.array(post_means)[sort_idx]
     post_stds  = np.array(post_stds)[sort_idx]
+    marg_means = np.array(marg_means)[sort_idx]
 
     col_y = np.array(col_y)[sort_idx]
     stds  = np.array(stds)[sort_idx]
 
     labels = np.array(labels)[sort_idx]
     x = np.arange(len(labels))
-    offset = 0.2
+    offset = 0.3
+    sub_offest = 0.1
 
     ax.errorbar(
         x - offset,
@@ -490,7 +495,7 @@ def make_M_and_predictive(model):
         yerr=prior_stds,
         fmt='o',
         capsize=4,
-        label='Initial Mean ±2σ'
+        label='Prior Mean ±2σ'
     )
 
     ax.errorbar(
@@ -502,9 +507,19 @@ def make_M_and_predictive(model):
         label='Posterior Mean ±2σ'
     )
 
+    ax.scatter(
+        x-sub_offest,
+        marg_means,
+        marker = 'd',
+        color = (255/255,215/255,0),
+        s=100,
+        label = 'Initial Mean',
+        zorder=1
+    )
+
     # Truth
     ax.scatter(
-        x,
+        x + sub_offest,
         true_means,
         marker='*',
         color = "red",
@@ -545,19 +560,19 @@ def make_M_and_predictive(model):
     fig, ax = plt.subplots(figsize=(10, 6))
 
 
-    offset = 0.15
+    offset = 0.17
 
     ax.errorbar(
-        x + offset,
+        x - offset,
         prior_means,
         yerr=prior_stds,
         fmt='o',
         capsize=4,
-        label='Initial Mean ±2σ'
+        label='Prior  Mean ±2σ'
     )
 
     ax.errorbar(
-        x-offset,
+        x+offset,
         col_y,
         yerr=stds,
         # color = (91/255, 47/255, 110/255),
