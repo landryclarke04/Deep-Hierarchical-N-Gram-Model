@@ -104,6 +104,7 @@ def main():
     # Error-based redesign (highlights the effectiveness of learning):
     gr.make_learning_error_plot(model)
     gr.make_error_vs_m_plot(model)
+    gr.make_trigram_learning_plot(model)
 
     # Old level-based versions (kept for reference):
     # gr.make_one_learning_plot(model)
