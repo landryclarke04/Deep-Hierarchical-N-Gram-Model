@@ -50,7 +50,9 @@ class Node:
 
         # variance variables
         self.true_var = self.get_IWH_var()
-        self.prior_var = self.get_IWH_var()
+        self.true_var_inv = np.linalg.inv(self.true_var)
+        # self.prior_var = self.get_IWH_var()
+        self.prior_var = self.true_var.copy()
         self.prior_var_inv = np.linalg.inv(self.prior_var)
         self.post_var = None
 
@@ -204,18 +206,33 @@ class Node:
     def posterior_data(self):
         # if we have already calculated posterior, just need to sample again
         if len(self.mean_copies) > 2:
+            true_sig = self.true_var_inv
+            eta = self.prior_mean
+            if self.m != 0:
+                y_bar = np.mean(self.y, axis=0).reshape(self.p, 1)
+                self.post_mean = self.post_var @ (self.prior_var_inv@eta + self.m*true_sig @ y_bar)
+            else:
+                self.post_mean = self.post_var @ (self.prior_var_inv@eta)
             self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
             self.mean_copies.append(self.est_mean.copy())
             self.has_run = True
             self.has_run_prior = False
             return
         if self.m==0:
-            self.post_mean = self.prior_mean
-            self.post_var = self.prior_var
+            true_sig = self.true_var_inv
+            self.post_var = self.prior_var.copy()
+            eta = self.prior_mean
+            self.post_mean = self.post_var @ (self.prior_var_inv@eta)
             self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
             self.mean_copies.append(self.est_mean.copy())
             self.has_run = True
             self.has_run_prior = False
+            # self.post_mean = self.prior_mean
+            # self.post_var = self.prior_var
+            # self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
+            # self.mean_copies.append(self.est_mean.copy())
+            # self.has_run = True
+            # self.has_run_prior = False
             return
         # post variance wow
         true_sig = np.linalg.inv(self.true_var)
@@ -363,8 +380,20 @@ class Node:
         if self.true_mean is not None:
             return
         # check edge case (level 1)
+        if self.has_no_children():
+            self.m = Node.M[Node.m]
+            Node.m += 1
+            if Node.m >= len(Node.M):
+                Node.m = 0
+            
+        self.true_var = self.get_IWH_var()
+        self.true_var_inv = np.linalg.inv(self.true_var)
+        # self.prior_var = self.get_IWH_var()
+        self.prior_var = self.true_var.copy()
+        self.prior_var_inv = np.linalg.inv(self.prior_var)
+        true_var_scaled = 0.5 * self.true_var
         if self.p == 1:
-            self.true_mean = self.sample_MVN(Node.mu_omega, self.true_var)
+            self.true_mean = self.sample_MVN(Node.mu_omega, true_var_scaled)
             self.prior_var_mod_right = self.prior_var_inv.copy()
             self.prior_var_mod_left = self.prior_var_inv.copy()
         else:
@@ -380,17 +409,10 @@ class Node:
                 eta[1][0] = Node.mu_delta[0][0]
             # true_mean should be N(eta, true_var)
             # self.true_mean = eta.reshape(self.p, 1)
-            self.true_mean = self.sample_MVN(eta, self.true_var)
-
+            self.true_mean = self.sample_MVN(eta, true_var_scaled)
         if self.has_no_children():
-            if self.gram == "THE":
-                self.m = 500
-            else:
-                self.m = Node.M[Node.m]
-            Node.m += 1
-            if Node.m >= len(Node.M):
-                Node.m = 0
             self.data()
+
             
             
         
