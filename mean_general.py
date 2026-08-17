@@ -219,7 +219,7 @@ class Node:
             self.has_run_prior = False
             return
         if self.m==0:
-            true_sig = self.true_var_inv
+            # true_sig = self.true_var_inv
             self.post_var = self.prior_var.copy()
             eta = self.prior_mean
             self.post_mean = self.post_var @ (self.prior_var_inv@eta)
@@ -227,24 +227,18 @@ class Node:
             self.mean_copies.append(self.est_mean.copy())
             self.has_run = True
             self.has_run_prior = False
-            # self.post_mean = self.prior_mean
-            # self.post_var = self.prior_var
-            # self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
-            # self.mean_copies.append(self.est_mean.copy())
-            # self.has_run = True
-            # self.has_run_prior = False
             return
         # post variance wow
-        true_sig = np.linalg.inv(self.true_var)
-        n = self.y.shape[0]
-        self.post_var = np.linalg.inv(self.prior_var_inv + n* true_sig)
+        true_sig = self.true_var_inv
+        m = self.m
+        self.post_var = np.linalg.inv(self.prior_var_inv + m* true_sig)
 
         # post eta
         y_bar = np.mean(self.y, axis=0).reshape(self.p, 1)
         eta = self.prior_mean
         # print(self.gram)
         # print(eta)
-        self.post_mean = self.post_var @ (self.prior_var_inv@eta + n*true_sig @ y_bar)
+        self.post_mean = self.post_var @ (self.prior_var_inv@eta + m*true_sig @ y_bar)
 
         # self.prior_var = self.post_var.copy()
 
@@ -369,6 +363,7 @@ class Node:
             i = random.randint(0, len(self.marginal_priors)-1)
             self.marginal_mean = self.marginal_priors[i]
             self.est_mean = self.marginal_mean.copy()
+            self.mean_copies.append(self.est_mean.copy())
             # remember the initializing draw; est_mean will be mutated by Gibbs
             self.gibbs_init_mean = self.est_mean.copy()
         
@@ -527,6 +522,11 @@ class Node:
     def get_gibbs_init_mean(self):
         # the single marginal-prior draw used to initialize Gibbs (est_mean at t=0)
         return self.gibbs_init_mean
+
+    def get_mle_mean(self):
+        if self.m ==0:
+            return None
+        return np.mean(self.y, axis=0).reshape(self.p, 1)
 
     def __str__(self):
         return self.gram

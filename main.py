@@ -101,14 +101,15 @@ def main():
     #     model.nodes[g].print_results()
 
     
-    # Error-based redesign (highlights the effectiveness of learning):
-    # gr.make_learning_error_plot(model)
-    # gr.make_error_vs_m_plot(model)
-    # gr.make_trigram_learning_plot(model)
+    # # Error-based redesign (highlights the effectiveness of learning):
+    # # gr.make_learning_error_plot(model)
+    gr.make_error_vs_m_plot(model)
+
+    gr.make_posterior_predictive_check(model)
 
     # Old level-based versions (kept for reference):
     # gr.make_one_learning_plot(model)
-    gr.make_M_and_predictive(model)
+    # gr.make_M_and_predictive(model)
 
 
     # build_full()
