@@ -7,16 +7,122 @@ import random
 # from model import Phi
 
 '''
+class for one omega
+'''
+class Omega:
+    def __init__(self):
+        self.children = set()
+        
+        self.true_var = self.get_IWH_var()
+        self.true_var_inv = np.linalg.inv(self.true_var)
+        # self.prior_var = self.get_IWH_var()
+        self.prior_var = 0.5 * self.true_var.copy()
+        self.prior_var_inv = np.linalg.inv(self.prior_var)
+        self.post_var = None
+
+        # mean variables
+        self.prior_mean = np.array([0.3]).reshape(1,1)
+        self.true_mean = self.sample_MVN(self.prior_mean, self.true_var)
+
+        # eta(s)
+        
+        self.post_mean = None
+
+        # what will be compared to true_mean
+        self.est_mean = None
+        # the single draw from the marginal prior used to seed the Gibbs
+        # sampler (est_mean at iteration 0), captured before Gibbs overwrites it
+        self.gibbs_init_mean = None
+        self.mean_copies = []
+
+        # priors and predictors
+        self.marginal_priors = []
+        self.marginal_mean = None
+        self.marginal_data = []
+
+
+    def marginal_prior_update(self):
+        self.marginal_mean = self.sample_MVN(self.prior_mean, self.prior_var)
+        self.marginal_priors.append(self.marginal_mean.copy())
+
+    def update_prior_mean(self):
+        if self.est_mean is None:
+            i = random.randint(0, len(self.marginal_priors)-1)
+            self.marginal_mean = self.marginal_priors[i]
+            self.est_mean = self.marginal_mean.copy()
+            self.mean_copies.append(self.est_mean.copy())
+            # remember the initializing draw; est_mean will be mutated by Gibbs
+            self.gibbs_init_mean = self.est_mean.copy()
+        
+    def posterior_mean(self):
+        if len(self.mean_copies) < 2:
+            self.posterior_mean_first_run()
+            return
+        # post variance first
+        # post_V = prior_V.copy() # inverse to make into post V
+
+        eta = self.prior_mean.copy()
+        post_eta = self.prior_var_inv @ eta
+
+
+        for c in self.children:
+            post_eta += c.prior_var_inv @ c.get_est_mean()
+        
+        self.post_mean = self.post_var @ post_eta
+
+        self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
+        self.mean_copies.append(self.est_mean.copy())
+
+    def posterior_mean_first_run(self):
+        # post variance first
+        post_V = self.prior_var_inv.copy() # inverse to make into post V
+        # self.prior_var_mod_left = phi_left @ self.prior_var_inv
+        # self.prior_var_mod_right = phi_right @ self.prior_var_inv
+
+        eta = self.prior_mean.copy()
+        post_eta = self.prior_var_inv @ eta
+
+        for c in self.children:
+            post_V += c.prior_var_inv
+
+            post_eta += c.prior_var_inv @ c.get_est_mean()
+        
+
+        self.post_var = np.linalg.inv(post_V)
+        self.post_mean = self.post_var @ post_eta
+
+        self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
+        self.mean_copies.append(self.est_mean.copy())
+
+
+    def get_IWH_var(self): # method checked
+        v = np.eye(1)
+        return invwishart.rvs(
+                df=(3), # because self.p is always 1
+                scale=v
+            ).reshape(1,1)
+    
+    def sample_MVN(self, mean, cov):
+        mean_mod = mean.flatten()
+        return np.random.multivariate_normal(mean_mod, cov).reshape(1, 1)
+
+    def set_children(self, cl):
+        self.children = cl
+
+'''
 trying generalization
 '''
 class Node:
 
-    eta_omega = np.array([0.3])
-    sig_omega = invwishart.rvs(
-                df=(3), # self.p=1 + 2
-                scale= np.eye(1) # self.p=1
-            ).reshape(1, 1) #self.p=1
-    mu_omega = np.random.multivariate_normal(eta_omega, sig_omega).reshape(1, 1)
+    omega = Omega()
+
+    # eta_omega = np.array([0.3])
+    # sig_omega = invwishart.rvs(
+    #             df=(3), # self.p=1 + 2
+    #             scale= np.eye(1) # self.p=1
+    #         ).reshape(1, 1) #self.p=1
+    mu_omega = omega.est_mean
+    # omega_children = set()
     sig_delta = invwishart.rvs(
                 df=(3), # self.p=1 + 2
                 scale= np.eye(1) # self.p=1
@@ -32,6 +138,10 @@ class Node:
     M = [500, 100, 10, 2, 0]
 
     m = 0
+
+    # add one static method get omega
+    def get_omega():
+        return Node.omega
     
     def __init__(self, gram):
         self.gram = gram
@@ -128,7 +238,7 @@ class Node:
             resid = child_mean - phi_left @ sib_mean
             if c.get_p()==3:
                 resid = resid - Node.phi_delta @ Node.mu_delta
-            post_eta == child_V @ resid
+            post_eta += child_V @ resid
             
         for c in self.get_right_children():
             # variance
@@ -142,7 +252,7 @@ class Node:
             resid = child_mean - phi_right @ sib_mean
             if c.get_p()==3:
                 resid = resid - Node.phi_delta @ Node.mu_delta
-            post_eta == child_V @ resid
+            post_eta += child_V @ resid
 
         
 
@@ -179,7 +289,7 @@ class Node:
             resid = child_mean - phi_left @ sib_mean
             if c.get_p()==3:
                 resid = resid - Node.phi_delta @ Node.mu_delta
-            post_eta == child_V @ resid
+            post_eta += child_V @ resid
             
         for c in self.get_right_children():
             # variance
@@ -192,7 +302,7 @@ class Node:
             resid = child_mean - phi_right @ sib_mean
             if c.get_p()==3:
                 resid = resid - Node.phi_delta @ Node.mu_delta
-            post_eta == child_V @ resid
+            post_eta += child_V @ resid
 
         
 
@@ -322,7 +432,7 @@ class Node:
             if len(self.right_par.marginal_priors) <= len(self.marginal_priors):
                 self.right_par.marginal_prior_update(phi_collection)
         if self.p == 1:
-            eta = Node.mu_omega
+            eta = Node.omega.marginal_mean
         else:
             phi = phi_collection[len(self.gram)-1]
             phi_left = phi.phi_left()
@@ -352,7 +462,7 @@ class Node:
         self.has_run = False
         # check edge case (level 1)
         if self.p == 1:
-            eta = Node.mu_omega
+            eta = Node.omega.est_mean
         else:
             phi = phi_collection[len(self.gram)-1]
             phi_left = phi.phi_left()
@@ -398,7 +508,7 @@ class Node:
         self.prior_var = true_var_scaled.copy()
         self.prior_var_inv = np.linalg.inv(self.prior_var)
         if self.p == 1:
-            self.true_mean = self.sample_MVN(Node.mu_omega, true_var_scaled)
+            self.true_mean = self.sample_MVN(Node.omega.true_mean, true_var_scaled)
             self.prior_var_mod_right = self.prior_var_inv.copy()
             self.prior_var_mod_left = self.prior_var_inv.copy()
         else:

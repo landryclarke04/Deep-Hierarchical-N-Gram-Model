@@ -8,6 +8,7 @@ import time
 
 from mean_general import Node
 from mean_general import Phi
+from mean_general import Omega
 
 
 class Model:
@@ -25,6 +26,7 @@ class Model:
 
         self.build(self.root)
         # create data for lower nodes
+        self.omega = Node.get_omega()
       
 
         # phi stuff
@@ -38,6 +40,7 @@ class Model:
     def inference(self):
         start_time = time.perf_counter()
         self.build_phi()
+        self.omega.set_children(self.level1)
         self.create_true_mean()
         self.run_marginal_prior()
         self.update_prior_mean()   
@@ -84,6 +87,7 @@ class Model:
     def run_marginal_prior(self):
         num = 1000
         for i in range(num):
+            self.omega.marginal_prior_update()
             for node in self.roots:
                 node.marginal_prior_update(self.phi_collection)
 
@@ -96,6 +100,7 @@ class Model:
         for node in self.level1:
             node.posterior_mean(self.phi_collection)
 
+        self.omega.posterior_mean()
 
         
         return
@@ -179,7 +184,7 @@ class Model:
     def update_prior_mean(self):
         # if visited is None:
         #     visited = set()
-
+        self.omega.update_prior_mean()
         for node in self.roots:
             node.update_prior_mean(self.phi_collection)
 
