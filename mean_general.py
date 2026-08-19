@@ -395,9 +395,8 @@ class Node:
         self.true_var_inv = np.linalg.inv(self.true_var)
         # self.prior_var = self.get_IWH_var()
         true_var_scaled = 0.5 * self.true_var
-        self.prior_var = self.true_var_scaled.copy()
+        self.prior_var = true_var_scaled.copy()
         self.prior_var_inv = np.linalg.inv(self.prior_var)
-        
         if self.p == 1:
             self.true_mean = self.sample_MVN(Node.mu_omega, true_var_scaled)
             self.prior_var_mod_right = self.prior_var_inv.copy()
