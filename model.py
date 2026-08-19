@@ -38,8 +38,8 @@ class Model:
     def inference(self):
         start_time = time.perf_counter()
         self.build_phi()
-        self.run_marginal_prior()
         self.create_true_mean()
+        self.run_marginal_prior()
         self.update_prior_mean()   
         # step 1: make data
         # self.data(n)
