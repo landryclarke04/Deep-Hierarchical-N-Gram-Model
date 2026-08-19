@@ -6,6 +6,9 @@ import random
 
 # from model import Phi
 
+# global constant
+c_var = 0.1
+
 '''
 class for one omega
 '''
@@ -13,10 +16,10 @@ class Omega:
     def __init__(self):
         self.children = set()
         
-        self.true_var = self.get_IWH_var()
+        self.true_var = c_var * self.get_IWH_var()
         self.true_var_inv = np.linalg.inv(self.true_var)
         # self.prior_var = self.get_IWH_var()
-        self.prior_var = 0.5 * self.true_var.copy()
+        self.prior_var = self.true_var.copy()
         self.prior_var_inv = np.linalg.inv(self.prior_var)
         self.post_var = None
 
@@ -133,7 +136,7 @@ class Node:
     #         ).reshape(1, 1) #self.p=1
     mu_omega = omega.est_mean
     # omega_children = set()
-    sig_delta = invwishart.rvs(
+    sig_delta = c_var * invwishart.rvs(
                 df=(3), # self.p=1 + 2
                 scale= np.eye(1) # self.p=1
             ).reshape(1, 1) #self.p =1
@@ -169,11 +172,11 @@ class Node:
        
 
         # variance variables
-        self.true_var = self.get_IWH_var()
+        self.true_var = c_var * self.get_IWH_var()
         self.true_var_inv = np.linalg.inv(self.true_var)
         # self.prior_var = self.get_IWH_var()
-        self.prior_var = self.true_var.copy()
-        self.prior_var_inv = np.linalg.inv(self.prior_var)
+        self.prior_var =  self.true_var
+        self.prior_var_inv =  np.linalg.inv(self.prior_var)
         self.post_var = None
 
         self.prior_var_mod_left = None
@@ -514,11 +517,11 @@ class Node:
         self.true_var = self.get_IWH_var()
         self.true_var_inv = np.linalg.inv(self.true_var)
         # self.prior_var = self.get_IWH_var()
-        true_var_scaled = 0.5 * self.true_var
-        self.prior_var = true_var_scaled.copy()
-        self.prior_var_inv = np.linalg.inv(self.prior_var)
+        
+        self.prior_var = self.true_var.copy()
+        self.prior_var_inv = self.true_var_inv.copy()
         if self.p == 1:
-            self.true_mean = self.sample_MVN(Node.omega.true_mean, true_var_scaled)
+            self.true_mean = self.sample_MVN(Node.omega.true_mean, self.true_var)
             self.prior_var_mod_right = self.prior_var_inv.copy()
             self.prior_var_mod_left = self.prior_var_inv.copy()
         else:
@@ -534,7 +537,7 @@ class Node:
                 eta[1][0] = Node.mu_delta[0][0]
             # true_mean should be N(eta, true_var)
             # self.true_mean = eta.reshape(self.p, 1)
-            self.true_mean = self.sample_MVN(eta, true_var_scaled)
+            self.true_mean = self.sample_MVN(eta, self.true_var)
         if self.has_no_children():
             self.data()
 
