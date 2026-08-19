@@ -94,6 +94,16 @@ class Omega:
         self.est_mean = self.sample_MVN(self.post_mean, self.post_var)
         self.mean_copies.append(self.est_mean.copy())
 
+    def get_final_mean_est(self):
+        num_samples = len(self.mean_copies)
+
+        burn = int(num_samples*0.1)
+
+        mu_post = np.array(self.mean_copies[burn:])
+        mu_est = mu_post.mean(axis=0)
+
+        self.est_mean = np.array(mu_est).reshape(1, 1)
+
 
     def get_IWH_var(self): # method checked
         v = np.eye(1)

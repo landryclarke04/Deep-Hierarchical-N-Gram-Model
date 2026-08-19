@@ -79,7 +79,7 @@ class Model:
 
             # for gram in self.nodes:
             #     self.nodes[gram].has_run = False
-
+        self.omega.get_final_mean_est()
         for gram in self.nodes:
             self.nodes[gram].get_final_mean_est()
 
