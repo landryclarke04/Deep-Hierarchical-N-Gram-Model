@@ -124,8 +124,11 @@ class Node:
             child_mean = c.get_est_mean()
             # post_eta += child_V @ (child_mean - 
             #                                     phi_left @ sib_mean)
-            post_eta += child_V @ (child_mean - 
-                                                phi_left @ sib_mean)
+
+            resid = child_mean - phi_left @ sib_mean
+            if c.get_p()==3:
+                resid = resid - Node.phi_delta @ Node.mu_delta
+            post_eta == child_V @ resid
             
         for c in self.get_right_children():
             # variance
@@ -135,8 +138,11 @@ class Node:
             # eta
             sib_mean = c.right_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta += child_V @ (child_mean - 
-                                                phi_right @ sib_mean)
+            # if n-gram is bi-gram, need to factor in mu_delta
+            resid = child_mean - phi_right @ sib_mean
+            if c.get_p()==3:
+                resid = resid - Node.phi_delta @ Node.mu_delta
+            post_eta == child_V @ resid
 
         
 
@@ -170,8 +176,10 @@ class Node:
             # eta
             sib_mean = c.left_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta += child_V @ (child_mean - 
-                                                phi_left @ sib_mean)
+            resid = child_mean - phi_left @ sib_mean
+            if c.get_p()==3:
+                resid = resid - Node.phi_delta @ Node.mu_delta
+            post_eta == child_V @ resid
             
         for c in self.get_right_children():
             # variance
@@ -181,8 +189,10 @@ class Node:
             # eta
             sib_mean = c.right_parent().get_est_mean()
             child_mean = c.get_est_mean()
-            post_eta +=  child_V @ (child_mean - 
-                                                phi_right @ sib_mean)
+            resid = child_mean - phi_right @ sib_mean
+            if c.get_p()==3:
+                resid = resid - Node.phi_delta @ Node.mu_delta
+            post_eta == child_V @ resid
 
         
 
